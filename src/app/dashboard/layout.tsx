@@ -1,5 +1,6 @@
 'use client';
 
+import { signOut } from 'next-auth/react';
 import { useState } from 'react';
 import Link from 'next/link';
 
@@ -23,13 +24,19 @@ export default function DashboardLayout({
                             </div>
 
                             {/* Desktop Links */}
-                            <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
+                            <div className="hidden sm:ml-6 sm:flex sm:items-center sm:space-x-8">
                                 <Link
                                     href="/dashboard"
                                     className="inline-flex items-center border-b-2 border-blue-500 px-1 pt-1 text-sm font-medium text-gray-900 dark:text-gray-100"
                                 >
                                     Dashboard
                                 </Link>
+                                <button
+                                    onClick={() => signOut({ callbackUrl: '/login' })}
+                                    className="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                    Sign Out
+                                </button>
                             </div>
 
                             {/* Mobile Menu Button */}
@@ -65,6 +72,12 @@ export default function DashboardLayout({
                             >
                                 Dashboard
                             </Link>
+                            <button
+                                onClick={() => signOut({ callbackUrl: '/login' })}
+                                className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                            >
+                                Sign Out
+                            </button>
                         </div>
                     </div>
                 )}

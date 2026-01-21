@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
@@ -51,17 +51,25 @@ export default function DashboardPage() {
 
     return (
         <div>
-            <div className="mb-6 flex items-center justify-between">
+            <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
                 <div>
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Bot Instances</h1>
                     <p className="text-sm text-gray-500">Welcome back, {session.user?.name}</p>
                 </div>
-                <button
-                    onClick={openCreateDialog}
-                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                >
-                    Add New Bot
-                </button>
+                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-4">
+                    <button
+                        onClick={openCreateDialog}
+                        className="rounded-md bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                    >
+                        Add New Bot
+                    </button>
+                    <button
+                        onClick={() => signOut({ callbackUrl: '/login' })}
+                        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
+                    >
+                        Sign Out
+                    </button>
+                </div>
             </div>
 
             <CreateBotDialog
@@ -76,7 +84,7 @@ export default function DashboardPage() {
                     <p>No bot instances found. Create one to get started!</p>
                 </div>
             ) : (
-                <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                     {instances.map((instance) => (
                         <BotCard
                             key={instance._id as string}
@@ -165,7 +173,7 @@ function BotCard({
                         Status: <span className={`font-medium ${isRunning ? 'text-green-600' : 'text-red-600'}`}>{instance.status}</span>
                     </p>
                 </div>
-                <div className="mt-6 flex gap-2">
+                <div className="mt-6 flex flex-wrap gap-2">
                     <button
                         onClick={toggleStatus}
                         className={`flex-1 rounded-md px-3 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${isRunning

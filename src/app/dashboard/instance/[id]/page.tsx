@@ -69,7 +69,7 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
             {/* Header */}
             <header className="bg-white shadow dark:bg-gray-800">
                 <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
                         <div>
                             <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-white">
                                 {instance.name}
@@ -86,8 +86,8 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
                                 )}
                             </div>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-medium ${instance.status === 'RUNNING'
+                        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
+                            <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-medium ${instance.status === 'RUNNING'
                                 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
                                 : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'
                                 }`}>

@@ -152,7 +152,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
                 <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
                     {initialData ? 'Edit Bot Configuration' : 'Create New Bot'}
                 </h2>

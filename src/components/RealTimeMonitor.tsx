@@ -123,7 +123,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Logs Section */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800 lg:col-span-2">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
                     <h3 className="text-lg font-medium text-gray-900 dark:text-white">System Logs</h3>
                     <div className="flex items-center gap-3">
                         <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
@@ -132,7 +132,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         <span className={`inline-flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} title={isConnected ? 'Connected' : 'Simulating/Connecting'} />
                     </div>
                 </div>
-                <div className="h-64 overflow-y-auto rounded bg-gray-900 p-4 font-mono text-xs text-gray-300">
+                <div className="h-64 overflow-y-auto rounded bg-gray-900 p-4 font-mono text-xs text-gray-300 sm:h-80">
                     {logs.map((log, i) => (
                         <div key={i} className="mb-1">
                             <span className="text-gray-500">[{log.timestamp}]</span>{' '}
@@ -149,7 +149,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             {/* Betting History */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
                 <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
-                <div className="overflow-hidden rounded border border-gray-200 dark:border-gray-700">
+                <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-700">
                             <tr>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useSession } from 'next-auth/react';
+import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -65,6 +65,12 @@ export default function AdminLayout({
                             </div>
 
                             <div className="flex items-center gap-4">
+                                <button
+                                    onClick={() => signOut({ callbackUrl: '/login' })}
+                                    className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                                >
+                                    Sign Out
+                                </button>
                                 <Link href="/dashboard" className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
                                     Exit Admin
                                 </Link>
@@ -103,6 +109,12 @@ export default function AdminLayout({
                                     {item.name}
                                 </Link>
                             ))}
+                            <button
+                                onClick={() => signOut({ callbackUrl: '/login' })}
+                                className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                            >
+                                Sign Out
+                            </button>
                         </div>
                     </div>
                 )}

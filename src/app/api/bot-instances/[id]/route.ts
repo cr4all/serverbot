@@ -60,6 +60,35 @@ export async function PATCH(
             { new: true, runValidators: true }
         );
 
+        if ('status' in body)
+        {
+            try {
+                const BOT_SERVER = process.env.BOTMANAGER_URL || 'http://localhost:4000';
+                let api_path = '';
+                if (body.status.toLowerCase() === 'running'){
+                    api_path = 'start';
+                }
+                else if (body.status.toLowerCase() === 'stopped'){
+                    api_path = 'stop';
+                }
+                const res = await fetch(`${BOT_SERVER}/bot/${api_path}/${id}`);
+                if (res.ok) {
+                    return NextResponse.json(
+                        { error: 'Bot instance is RUNNING' },
+                        { status: 200 }
+                    );
+                }
+                else {
+                    return NextResponse.json(
+                        { error: 'Failed to update bot instance' },
+                        { status: 500 }
+                    );
+                }
+            } catch (error) {
+                console.error('Failed to fetch instances', error);
+            }
+        }
+
         if (!instance) {
             return NextResponse.json(
                 { error: 'Bot instance not found or unauthorized' },

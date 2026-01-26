@@ -6,7 +6,7 @@ export default function AdminBotsPage() {
     const [bots, setBots] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
-    const [formData, setFormData] = useState({ name: '', type: 'TRADING', description: '', version: '1.0.0' });
+    const [formData, setFormData] = useState({ name: '', type: '', description: '', version: '1.0.0' });
 
     useEffect(() => {
         fetchBots();
@@ -36,7 +36,7 @@ export default function AdminBotsPage() {
             });
             if (res.ok) {
                 setIsFormOpen(false);
-                setFormData({ name: '', type: 'TRADING', description: '', version: '1.0.0' });
+                setFormData({ name: '', type: '', description: '', version: '1.0.0' });
                 fetchBots();
             }
         } catch (e) {
@@ -72,15 +72,12 @@ export default function AdminBotsPage() {
                         </div>
                         <div>
                             <label className="text-sm font-medium">Type</label>
-                            <select
+                            <input
+                                required
                                 value={formData.type}
                                 onChange={(e) => setFormData({ ...formData, type: e.target.value })}
                                 className="mt-1 block w-full rounded-md border p-2 dark:bg-gray-700"
-                            >
-                                <option value="TRADING">TRADING</option>
-                                <option value="MONITORING">MONITORING</option>
-                                <option value="OTHER">OTHER</option>
-                            </select>
+                            />
                         </div>
                         <div className="sm:col-span-2">
                             <label className="text-sm font-medium">Description</label>

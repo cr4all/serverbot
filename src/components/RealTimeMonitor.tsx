@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
+import he from 'he';
 
 interface RealTimeMonitorProps {
     instanceId: string;
@@ -39,7 +40,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
     useEffect(() => {
         // In a real app, this URL might come from config or environment variable
         // For now, we assume a websocket server running locally or proxied
-        const SOCKET_URL = process.env.NEXT_PUBLIC_WS_URL || 'http://localhost:4000';
+        const SOCKET_URL = process.env.BOTMANAGER_URL || 'http://localhost:4000';
 
         socketRef.current = io(SOCKET_URL, {
             query: { instanceId },
@@ -49,6 +50,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         socketRef.current.on('connect', () => {
             setIsConnected(true);
             console.log('Connected to WebSocket');
+            socketRef.current?.send(JSON.stringify({ subscribe: instanceId }));
         });
 
         socketRef.current.on('disconnect', () => {
@@ -61,11 +63,14 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         });
 
         socketRef.current.on('bet', (data: BetEntry) => {
-            setBets((prev) => [data, ...prev].slice(0, 50));
+            setBets((prev) => [data, ...prev].slice(0, 10));
         });
 
         socketRef.current.on('tip', (data: TipEntry) => {
-            setTips((prev) => [data, ...prev].slice(0, 50));
+            setTips((prev) => {
+                const withoutSame = prev.filter(t => t.id !== data.id);
+                return [data, ...withoutSame].slice(0, 10);
+            });
         });
 
         // Mock Data Simulation (For demo purposes if no server is running)
@@ -96,12 +101,16 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                 }
 
                 if (Math.random() > 0.9) {
-                    setTips((prev) => [{
+                    const newTip = {
                         id: Math.random().toString(36).substr(2, 9),
                         timestamp: now,
                         message: `Buy signal detected on pair #${Math.floor(Math.random() * 10)}`,
                         source: 'SignalProvider_A'
-                    }, ...prev].slice(0, 20));
+                    } as TipEntry;
+                    setTips((prev) => {
+                        const withoutSame = prev.filter(t => t.id !== newTip.id);
+                        return [newTip, ...withoutSame].slice(0, 20);
+                    });
                 }
 
                 // Simulate Balance Update
@@ -118,6 +127,21 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             clearInterval(interval);
         };
     }, [instanceId]);
+
+    const decodeTipMessage = (s: string) => {
+        if (!s) return s;
+        let decoded = s;
+        try {
+            decoded = decodeURIComponent(s);
+        } catch (e) {
+            decoded = s;
+        }
+        try {
+            return he.decode(decoded);
+        } catch (e) {
+            return decoded;
+        }
+    };
 
     return (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -190,7 +214,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                 <span className="text-xs font-bold text-blue-700 dark:text-blue-300">{tip.source}</span>
                                 <span className="text-xs text-gray-500 dark:text-gray-400">{tip.timestamp.split('T')[1]?.split('.')[0]}</span>
                             </div>
-                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{tip.message}</p>
+                            <p className="mt-1 text-sm text-gray-700 dark:text-gray-200">{decodeTipMessage(tip.message)}</p>
                         </div>
                     ))}
                     {tips.length === 0 && <div className="text-center text-gray-500 py-4">No tips received</div>}

@@ -12,7 +12,6 @@ const BotSchema = new mongoose.Schema(
         },
         type: {
             type: String,
-            enum: ['CHAT', 'TRADING', 'CRAWLER'],
             required: true,
         },
         defaultConfig: {

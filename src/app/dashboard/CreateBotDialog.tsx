@@ -19,10 +19,15 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         config: {
             username: '',
             password: '',
-            domain: '',
+            appKey: '',
             licenseKey: '',
             stake: '',
-            balance: '',
+            // Proxy settings
+            proxyType: '',
+            proxyHost: '',
+            proxyPort: '',
+            proxyUsername: '',
+            proxyPassword: '',
         },
     });
 
@@ -37,11 +42,15 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config: {
                         username: initialData.config?.username || '',
                         password: initialData.config?.password || '',
-                        domain: initialData.config?.domain || '',
-                        licenseKey: initialData.config?.licenseKey || '',
-                        stake: initialData.config?.stake || '',
-                        balance: initialData.config?.balance || '', // Added balance
-                        ...initialData.config, // preserve other keys if any
+                            appKey: initialData.config?.appKey || '',
+                            licenseKey: initialData.config?.licenseKey || '',
+                            stake: initialData.config?.stake || '',
+                            proxyType: initialData.config?.proxyType || '',
+                            proxyHost: initialData.config?.proxyHost || '',
+                            proxyPort: initialData.config?.proxyPort || '',
+                            proxyUsername: initialData.config?.proxyUsername || '',
+                            proxyPassword: initialData.config?.proxyPassword || '',
+                            ...initialData.config, // preserve other keys if any
                     }
                 });
             } else {
@@ -52,10 +61,14 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config: {
                         username: '',
                         password: '',
-                        domain: '',
+                        appKey: '',
                         licenseKey: '',
                         stake: '',
-                        balance: '',
+                        proxyType: '',
+                        proxyHost: '',
+                        proxyPort: '',
+                        proxyUsername: '',
+                        proxyPassword: '',
                     },
                 });
             }
@@ -98,19 +111,19 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             let botIdToUse = formData.botId;
 
             // If creating and no template selected (and none exist), create dummy (Admin logic typically)
-            if (!botIdToUse && !initialData) {
-                const newBot = await fetch('/api/bots', {
-                    method: 'POST',
-                    body: JSON.stringify({
-                        name: 'Standard Trading Bot',
-                        type: 'TRADING',
-                        version: '1.0.0',
-                        description: 'A standard trading bot template'
-                    })
-                });
-                const botData = await newBot.json();
-                botIdToUse = botData._id;
-            }
+            // if (!botIdToUse && !initialData) {
+            //     const newBot = await fetch('/api/bots', {
+            //         method: 'POST',
+            //         body: JSON.stringify({
+            //             name: 'Standard Trading Bot',
+            //             type: 'TRADING',
+            //             version: '1.0.0',
+            //             description: 'A standard trading bot template'
+            //         })
+            //     });
+            //     const botData = await newBot.json();
+            //     botIdToUse = botData._id;
+            // }
 
             const url = initialData
                 ? `/api/bot-instances/${initialData._id}`
@@ -152,7 +165,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
+            <div className="max-h-[95vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
                 <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
                     {initialData ? 'Edit Bot Configuration' : 'Create New Bot'}
                 </h2>
@@ -167,7 +180,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             disabled={!!initialData} // Disable template change when editing
                             className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50"
                         >
-                            {templates.length === 0 && <option value="">Loading...</option>}
+                            {templates.length === 0 && <option value="">No Bot to use</option>}
                             {templates.map((t) => (
                                 <option key={t._id} value={t._id}>
                                     {t.name} ({t.type})
@@ -188,31 +201,30 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                         />
                     </div>
+                    <div className="sm:col-span-2">
+                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">License Key</label>
+                        <input
+                            type="text"
+                            name="licenseKey"
+                            required
+                            value={formData.config.licenseKey}
+                            onChange={handleChange}
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                        />
+                    </div>
 
                     <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
                         <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Configuration</h3>
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Balance (Starting)</label>
-                                <input
-                                    type="number"
-                                    name="balance"
-                                    placeholder="e.g. 1000"
-                                    value={formData.config.balance}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                            </div>
-
-                            <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Domain</label>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">AppKey</label>
                                 <input
                                     type="text"
-                                    name="domain"
+                                    name="appKey"
                                     required
-                                    placeholder="example.com"
-                                    value={formData.config.domain}
+                                    placeholder="your-app-key"
+                                    value={formData.config.appKey}
                                     onChange={handleChange}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
@@ -242,28 +254,86 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                 />
                             </div>
 
+                            
+
                             <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">License Key</label>
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Amount</label>
                                 <input
                                     type="text"
-                                    name="licenseKey"
-                                    required
-                                    value={formData.config.licenseKey}
+                                    name="stake"
+                                    placeholder="Input stake amount"
+                                    value={formData.config.stake}
                                     onChange={handleChange}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
                             </div>
 
-                            <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Parameters</label>
-                                <input
-                                    type="text"
-                                    name="stake"
-                                    placeholder="e.g., 0.5, Low, High"
-                                    value={formData.config.stake}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
+                            <div className="sm:col-span-2 border-t border-gray-100 pt-4 dark:border-gray-700">
+                                <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Proxy</h4>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="sm:col-span-2">
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Type</label>
+                                        <select
+                                            name="proxyType"
+                                            value={formData.config.proxyType}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        >
+                                            <option value="">None</option>
+                                            <option value="HTTP">HTTP</option>
+                                            <option value="SOCKS5">SOCKS5</option>
+                                        </select>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Host/IP</label>
+                                        <input
+                                            type="text"
+                                            name="proxyHost"
+                                            placeholder="proxy.example.com or 1.2.3.4"
+                                            value={formData.config.proxyHost}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Port</label>
+                                        <input
+                                            type="number"
+                                            name="proxyPort"
+                                            placeholder="8080"
+                                            value={formData.config.proxyPort}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Username</label>
+                                        <input
+                                            type="text"
+                                            name="proxyUsername"
+                                            placeholder="optional"
+                                            value={formData.config.proxyUsername}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Password</label>
+                                        <input
+                                            type="password"
+                                            name="proxyPassword"
+                                            placeholder="optional"
+                                            value={formData.config.proxyPassword}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

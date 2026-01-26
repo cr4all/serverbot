@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
-
+import './Bot';
+import './User';
 const BotInstanceSchema = new mongoose.Schema(
     {
         botId: {

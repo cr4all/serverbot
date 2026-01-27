@@ -75,7 +75,7 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
                                 {instance.name}
                             </h1>
                             <p className="mt-1 text-sm text-gray-500">
-                                ID: {id} | Template: {(instance.botId as any)?.name}
+                                ID: {id} | Type: {(instance.botId as any)?.name}
                             </p>
                             <div className="mt-2 flex gap-4 text-sm text-gray-600 dark:text-gray-300">
                                 {instance.config?.username && (

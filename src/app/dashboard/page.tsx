@@ -22,6 +22,17 @@ export default function DashboardPage() {
         }
     }, [status, router]);
 
+    // Poll for instance updates every 30 seconds when authenticated
+    useEffect(() => {
+        if (status !== 'authenticated') return;
+
+        const interval = setInterval(() => {
+            fetchInstances();
+        }, 30_000);
+
+        return () => clearInterval(interval);
+    }, [status]);
+
     const fetchInstances = async () => {
         try {
             const res = await fetch(`/api/bot-instances`);
@@ -151,16 +162,16 @@ function BotCard({
                 </div>
                 <div className="mt-4 space-y-1">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Template: <span className="font-medium">{(instance.botId as any)?.name || 'Unknown'}</span>
+                        Type: <span className="font-medium">{(instance.botId as any)?.name || 'Unknown'}</span>
                     </p>
                     {instance.config?.username && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
                             User: <span className="font-medium text-gray-900 dark:text-white">{instance.config.username}</span>
                         </p>
                     )}
-                    {instance.config?.balance && (
+                    {instance.lastBalance !== undefined && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Balance: <span className="font-medium text-gray-900 dark:text-white">${instance.config.balance}</span>
+                            Balance: <span className="font-medium text-gray-900 dark:text-white">${instance.lastBalance}</span>
                         </p>
                     )}
                     <p className="text-sm text-gray-500 dark:text-gray-400">

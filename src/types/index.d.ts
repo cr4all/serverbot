@@ -35,6 +35,7 @@ export interface IBotInstance {
     botId: string | Types.ObjectId | IBot;
     userId: string | Types.ObjectId | IUser;
     name: string;
+    lastBalance: number;
     config: Record<string, any>;
     status: BotStatus;
     lastHeartbeat?: Date;
@@ -42,15 +43,3 @@ export interface IBotInstance {
     updatedAt: Date;
 }
 
-// Bot Log Types
-export type LogLevel = 'INFO' | 'WARN' | 'ERROR';
-
-export interface IBotLog {
-    _id: string | Types.ObjectId;
-    instanceId: string | Types.ObjectId | IBotInstance;
-    level: LogLevel;
-    message: string;
-    meta?: any;
-    createdAt: Date;
-    updatedAt: Date;
-}

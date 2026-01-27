@@ -74,7 +74,7 @@ export async function PATCH(
                 const res = await fetch(`${BOT_SERVER}/bot/${api_path}/${id}`);
                 if (res.ok) {
                     return NextResponse.json(
-                        { error: 'Bot instance is RUNNING' },
+                        { error: `Bot instance is ${api_path}` },
                         { status: 200 }
                     );
                 }

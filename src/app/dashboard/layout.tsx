@@ -40,7 +40,7 @@ export default function DashboardLayout({
                                 <div className="hidden sm:flex sm:items-center">
                                     <button
                                         onClick={() => signOut({ callbackUrl: '/login' })}
-                                        className="text-sm font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                        className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 dark:text-gray-100"
                                     >
                                         Sign Out
                                     </button>

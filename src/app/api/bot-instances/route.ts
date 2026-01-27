@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         await connectDB();
 
         // Force userId from session
-        const instanceData = { ...body, userId };
+        const instanceData = { ...body, userId:userId, lastBalance: 0 };
 
         const instance = await BotInstance.create(instanceData);
 

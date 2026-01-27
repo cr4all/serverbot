@@ -15,11 +15,14 @@ interface LogEntry {
 }
 
 interface BetEntry {
-    id: string;
-    timestamp: string;
-    amount: number;
-    result: 'WIN' | 'LOSS';
-    profit: number;
+    _id: string;
+    createdAt: string;
+    botInstanceId?: string;
+    tip_id?: string;
+    tip?: string;
+    stake: number;
+    failedCount: number;
+    status: 'SUCCESS' | 'FAILED';
 }
 
 interface TipEntry {
@@ -34,14 +37,30 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
     const [bets, setBets] = useState<BetEntry[]>([]);
     const [tips, setTips] = useState<TipEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
-    const [currentBalance, setCurrentBalance] = useState(1000); // Default simulated balance
+    const [currentBalance, setCurrentBalance] = useState(0); // Default simulated balance
     const socketRef = useRef<Socket | null>(null);
+    const SOCKET_URL = process.env.BOTMANAGER_URL || 'http://localhost:4000';
+
+    // Function to fetch the current balance from the server
+    const fetchBalance = async (signal?: AbortSignal) => {
+        try {
+            const res = await fetch(`${SOCKET_URL}/bot/balance/${instanceId}`, { signal });
+            if (!res.ok) {
+                console.error('Failed to fetch balance', res.status);
+                return;
+            }
+            const data = await res.json();
+            if (data && typeof data.balance === 'number') {
+                setCurrentBalance(data.balance);
+            }
+        } catch (e) {
+            if ((e as any).name === 'AbortError') return;
+            console.error('Failed to fetch balance', e);
+        }
+    };
 
     useEffect(() => {
-        // In a real app, this URL might come from config or environment variable
-        // For now, we assume a websocket server running locally or proxied
-        const SOCKET_URL = process.env.BOTMANAGER_URL || 'http://localhost:4000';
-
+        // socket connection
         socketRef.current = io(SOCKET_URL, {
             query: { instanceId },
             transports: ['websocket'],
@@ -62,8 +81,15 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             setLogs((prev) => [data, ...prev].slice(0, 100)); // Keep last 100 logs
         });
 
-        socketRef.current.on('bet', (data: BetEntry) => {
-            setBets((prev) => [data, ...prev].slice(0, 10));
+        socketRef.current.on('bet', (data: any) => {
+            const mapped: Partial<BetEntry> = {
+                _id: data._id || data.id || Math.random().toString(36).substr(2, 9),
+                createdAt: data.createdAt || new Date().toISOString(),
+                stake: data.stake || data.amount || 0,
+                status: data.status || (data.result === 'WIN' ? 'SUCCESS' : 'FAILED'),
+                failedCount: data.failedCount || 0,
+            };
+            setBets((prev) => [mapped as BetEntry, ...prev].slice(0, 20));
         });
 
         socketRef.current.on('tip', (data: TipEntry) => {
@@ -73,58 +99,63 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             });
         });
 
-        // Mock Data Simulation (For demo purposes if no server is running)
-        const interval = setInterval(() => {
-            if (!socketRef.current?.connected) {
-                // Simulate incoming data for visual verification if WS fails/not present
-                const now = new Date().toISOString();
-                const levels = ['INFO', 'INFO', 'INFO', 'WARN'];
-                const level = levels[Math.floor(Math.random() * levels.length)];
-
-                if (Math.random() > 0.7) {
-                    setLogs((prev) => [{
-                        timestamp: now,
-                        level,
-                        message: `System status check: ${Math.random().toFixed(2)}`
-                    }, ...prev].slice(0, 50));
-                }
-
-                if (Math.random() > 0.8) {
-                    const win = Math.random() > 0.5;
-                    setBets((prev) => [{
-                        id: Math.random().toString(36).substr(2, 9),
-                        timestamp: now,
-                        amount: Math.floor(Math.random() * 100),
-                        result: (win ? 'WIN' : 'LOSS') as 'WIN' | 'LOSS',
-                        profit: win ? Math.floor(Math.random() * 50) : -Math.floor(Math.random() * 50)
-                    }, ...prev].slice(0, 20));
-                }
-
-                if (Math.random() > 0.9) {
-                    const newTip = {
-                        id: Math.random().toString(36).substr(2, 9),
-                        timestamp: now,
-                        message: `Buy signal detected on pair #${Math.floor(Math.random() * 10)}`,
-                        source: 'SignalProvider_A'
-                    } as TipEntry;
-                    setTips((prev) => {
-                        const withoutSame = prev.filter(t => t.id !== newTip.id);
-                        return [newTip, ...withoutSame].slice(0, 20);
-                    });
-                }
-
-                // Simulate Balance Update
-                if (Math.random() > 0.8) {
-                    setCurrentBalance(prev => prev + (Math.random() > 0.5 ? 10 : -5));
-                }
-            }
-        }, 2000);
-
         return () => {
             if (socketRef.current) {
                 socketRef.current.disconnect();
             }
+        };
+    }, [instanceId]);
+
+    // Fetch balance initially and every 1 minute
+    useEffect(() => {
+        let mounted = true;
+        const controller = new AbortController();
+
+        // initial fetch
+        fetchBalance(controller.signal);
+
+        // Poll every 1 minute
+        const interval = setInterval(() => fetchBalance(), 60_000);
+
+        return () => {
+            mounted = false;
+            controller.abort();
             clearInterval(interval);
+        };
+    }, [instanceId, SOCKET_URL]);
+
+    // Poll DB for BetHistory for this instance
+    useEffect(() => {
+        let mounted = true;
+        const fetchBets = async () => {
+            try {
+                const res = await fetch(`/api/bet-history/${instanceId}?limit=50`);
+                if (!res.ok) return;
+                const dataRaw = await res.json();
+                if (mounted) {
+                    const mapped = (dataRaw || []).map((b: any) => ({
+                        _id: b._id,
+                        createdAt: b.createdAt,
+                        botInstanceId: b.botInstanceId || b.botInstance || b.botInstanceId,
+                        tip_id: b.tip_id,
+                        tip: b.tip,
+                        stake: b.stake,
+                        failedCount: b.failedCount || 0,
+                        status: b.status,
+                    } as BetEntry));
+                    setBets(mapped);
+                }
+            } catch (e) {
+                console.error('Failed to fetch bet history', e);
+            }
+        };
+
+        fetchBets();
+        const poll = setInterval(fetchBets, 3000);
+
+        return () => {
+            mounted = false;
+            clearInterval(poll);
         };
     }, [instanceId]);
 
@@ -153,6 +184,13 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
                             Live Balance: <span className="text-lg font-bold text-gray-900 dark:text-white">${currentBalance.toFixed(2)}</span>
                         </div>
+                        <button
+                            onClick={() => fetchBalance()}
+                            aria-label="Refresh balance"
+                            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                            Refresh
+                        </button>
                         <span className={`inline-flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} title={isConnected ? 'Connected' : 'Simulating/Connecting'} />
                     </div>
                 </div>
@@ -178,26 +216,30 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         <thead className="bg-gray-50 dark:bg-gray-700">
                             <tr>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Time</th>
-                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Result</th>
-                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Profit</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Failures</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800 text-sm">
                             {bets.map((bet) => (
-                                <tr key={bet.id}>
-                                    <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{bet.timestamp.split('T')[1]?.split('.')[0]}</td>
+                                <tr key={bet._id}>
+                                    <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{new Date(bet.createdAt).toLocaleString()}</td>
                                     <td className="px-3 py-2">
-                                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${bet.result === 'WIN' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
-                                            {bet.result}
+                                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${bet.status === 'SUCCESS' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
+                                            {bet.status}
                                         </span>
                                     </td>
-                                    <td className={`px-3 py-2 font-medium ${bet.profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
-                                        {bet.profit}
+                                    <td className="px-3 py-2">
+                                        <div className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-sm">{decodeTipMessage(bet.tip || bet.tip_id || '')}</div>
                                     </td>
+                                    <td className={`px-3 py-2 font-medium text-gray-700 dark:text-gray-200`}>{bet.stake}</td>
+                                    <td className={`px-3 py-2 font-medium ${bet.failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>{bet.failedCount}</td>
                                 </tr>
                             ))}
                             {bets.length === 0 && (
-                                <tr><td colSpan={3} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
+                                <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
                             )}
                         </tbody>
                     </table>

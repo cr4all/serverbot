@@ -17,6 +17,10 @@ const BotInstanceSchema = new mongoose.Schema(
             type: String, // User defined name for the instance
             required: true,
         },
+        lastBalance: {
+            type: Number,
+            default: 0,
+        },
         config: {
             type: mongoose.Schema.Types.Mixed,
             default: {},

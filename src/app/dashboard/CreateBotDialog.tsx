@@ -16,6 +16,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const [formData, setFormData] = useState({
         botId: '',
         name: '',
+        lastBalance: 0,
         config: {
             username: '',
             password: '',
@@ -39,6 +40,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 setFormData({
                     botId: (initialData.botId as any)?._id || (initialData.botId as string),
                     name: initialData.name,
+                    lastBalance: initialData.lastBalance,
                     config: {
                         username: initialData.config?.username || '',
                         password: initialData.config?.password || '',
@@ -58,6 +60,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 setFormData({
                     botId: '',
                     name: '',
+                    lastBalance: 0,
                     config: {
                         username: '',
                         password: '',
@@ -172,7 +175,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bot Template</label>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bot Type</label>
                         <select
                             name="botId"
                             value={formData.botId}

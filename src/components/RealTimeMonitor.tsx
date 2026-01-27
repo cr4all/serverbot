@@ -39,7 +39,9 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
     const [isConnected, setIsConnected] = useState(false);
     const [currentBalance, setCurrentBalance] = useState(0); // Default simulated balance
     const socketRef = useRef<Socket | null>(null);
-    const SOCKET_URL = process.env.BOTMANAGER_URL || 'http://localhost:4000';
+    // Use client-exposed env var. NEXT_PUBLIC_* vars are inlined into browser bundles.
+    // Keep fallback to server-only BOTMANAGER_URL and localhost for safety.
+    const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
 
     // Function to fetch the current balance from the server
     const fetchBalance = async (signal?: AbortSignal) => {

@@ -63,7 +63,7 @@ export async function PATCH(
         if ('status' in body)
         {
             try {
-                const BOT_SERVER = process.env.BOTMANAGER_URL || 'http://localhost:4000';
+                const BOT_SERVER = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
                 let api_path = '';
                 if (body.status.toLowerCase() === 'running'){
                     api_path = 'start';

@@ -17,14 +17,6 @@ export default function Home() {
           >
             Go to Dashboard
           </Link>
-          <a
-            href="https://github.com/your-repo/serverbot"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="rounded-full border border-gray-700 px-6 py-3 font-semibold transition hover:bg-gray-800"
-          >
-            Documentation
-          </a>
         </div>
       </main>
     </div>

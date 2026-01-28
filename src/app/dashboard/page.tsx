@@ -147,13 +147,11 @@ function BotCard({
                     <div className="flex items-center space-x-3">
                         <div className={`h-3 w-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-red-500'}`} />
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate" title={instance.name}>
-                            {isRunning ? (
+                            
                                 <a href={`/dashboard/instance/${instance._id}`} className="hover:underline hover:text-blue-500">
                                     {instance.name}
                                 </a>
-                            ) : (
-                                instance.name
-                            )}
+                            
                         </h3>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">

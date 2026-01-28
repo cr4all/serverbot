@@ -1,16 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import BetHistory from '@/models/BetHistory';
 import BotInstance from '@/models/BotInstance';
 
-export async function GET(
-  request: Request,
-  { params }: { params: { instanceId: string } }
-) {
+export async function GET(request: NextRequest, context: { params: any }) {
   try {
-    const { instanceId } = await params;
+    // `params` may be a plain object or a Promise depending on environment/types.
+    const params = await context.params;
+    const { instanceId } = params as { instanceId: string };
 
     const session: any = await getServerSession(authOptions);
     if (!session || !session.user) {

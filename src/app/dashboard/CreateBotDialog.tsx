@@ -84,9 +84,10 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             if (res.ok) {
                 const data = await res.json();
                 setTemplates(data);
-                // Set default template only if creating new and none selected
-                if (data.length > 0 && !formData.botId && !initialData) {
-                    setFormData((prev) => ({ ...prev, botId: data[0]._id }));
+                // Set default template only if creating new and none selected.
+                // Use functional updater to read latest state instead of closed-over `formData`.
+                if (data.length > 0 && !initialData) {
+                    setFormData((prev) => (prev.botId ? prev : { ...prev, botId: data[0]._id }));
                 }
             }
         } catch (e) {

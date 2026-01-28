@@ -275,6 +275,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             <div className="sm:col-span-2 border-t border-gray-100 pt-4 dark:border-gray-700">
                                 <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Proxy</h4>
 
+                                <p className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                    We strongly recommend using a proxy for security. Use SOCKS5 or a resident HTTP proxy to reduce the
+                                    risk of account blocks and protect your traffic.
+                                </p>
+
                                 <div className="grid gap-3 sm:grid-cols-2">
                                     <div className="sm:col-span-2">
                                         <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Type</label>

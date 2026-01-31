@@ -3,6 +3,7 @@
 import { signOut, useSession } from 'next-auth/react';
 import { useState } from 'react';
 import Link from 'next/link';
+import ChangePasswordDialog from '@/app/components/ChangePasswordDialog';
 
 export default function DashboardLayout({
     children,
@@ -10,7 +11,11 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     const { data: session } = useSession();
+
+    // render modal component at root of layout
+    
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -39,6 +44,9 @@ export default function DashboardLayout({
                             <div className="flex items-center gap-4">
                                 {/* Desktop Right Links */}
                                 <div className="hidden sm:flex sm:items-center">
+                                    <button onClick={() => setIsChangePasswordOpen(true)} className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 mr-4">
+                                        Change Password
+                                    </button>
                                     <button
                                         onClick={() => signOut({ callbackUrl: '/login' })}
                                         className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-900 dark:text-gray-100"
@@ -96,6 +104,12 @@ export default function DashboardLayout({
                                 </Link>
                             )}
                             <button
+                                onClick={() => { setIsMenuOpen(false); setIsChangePasswordOpen(true); }}
+                                className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                            >
+                                Change Password
+                            </button>
+                            <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                                 className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                             >
@@ -111,6 +125,11 @@ export default function DashboardLayout({
                     {children}
                 </div>
             </main>
+
+            {/* Change Password Dialog */}
+            {isChangePasswordOpen && (
+                <ChangePasswordDialog open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+            )}
         </div>
     );
 }

@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useEffect, useState } from 'react';
 
@@ -45,6 +45,24 @@ export default function AdminUsersPage() {
         } catch (e) { console.error(e); }
     };
 
+    const resetPassword = async (id: string) => {
+        if (!confirm('Reset password for this user? A temporary password will be generated.')) return;
+        try {
+            const res = await fetch(`/api/admin/users/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ resetPassword: true })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                alert(`Temporary password: ${data.tempPassword}`);
+                fetchUsers();
+            } else {
+                alert(data?.error || 'Failed to reset password');
+            }
+        } catch (e) { console.error(e); }
+    };
+
     if (loading) return <div className="text-center">Loading users...</div>;
 
     return (
@@ -87,6 +105,12 @@ export default function AdminUsersPage() {
                                         className="mr-3 text-blue-600 hover:text-blue-900 dark:text-blue-400"
                                     >
                                         Change Role
+                                    </button>
+                                    <button
+                                        onClick={() => resetPassword(user._id)}
+                                        className="mr-3 text-yellow-600 hover:text-yellow-900 dark:text-yellow-400"
+                                    >
+                                        Reset Password
                                     </button>
                                     <button
                                         onClick={() => deleteUser(user._id)}

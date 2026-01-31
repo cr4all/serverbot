@@ -4,6 +4,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ChangePasswordDialog from '@/app/components/ChangePasswordDialog';
 
 export default function AdminLayout({
     children,
@@ -14,6 +15,7 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -65,6 +67,9 @@ export default function AdminLayout({
                             </div>
 
                             <div className="flex items-center gap-4">
+                                <button onClick={() => setIsChangePasswordOpen(true)} className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white mr-4">
+                                    Change Password
+                                </button>
                                 <button
                                     onClick={() => signOut({ callbackUrl: '/login' })}
                                     className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
@@ -110,6 +115,12 @@ export default function AdminLayout({
                                 </Link>
                             ))}
                             <button
+                                onClick={() => { setIsMenuOpen(false); setIsChangePasswordOpen(true); }}
+                                className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                            >
+                                Change Password
+                            </button>
+                            <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                                 className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                             >
@@ -119,6 +130,11 @@ export default function AdminLayout({
                     </div>
                 )}
             </nav>
+
+            {/* Change Password Dialog */}
+            {isChangePasswordOpen && (
+                <ChangePasswordDialog open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+            )}
 
             <main className="py-10">
                 <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

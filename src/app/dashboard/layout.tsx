@@ -1,6 +1,6 @@
 'use client';
 
-import { signOut } from 'next-auth/react';
+import { signOut, useSession } from 'next-auth/react';
 import { useState } from 'react';
 import Link from 'next/link';
 
@@ -10,6 +10,7 @@ export default function DashboardLayout({
     children: React.ReactNode;
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const { data: session } = useSession();
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -44,6 +45,11 @@ export default function DashboardLayout({
                                     >
                                         Sign Out
                                     </button>
+                                    {session?.user && (session.user as any).role === 'admin' && (
+                                        <Link href="/admin" className="ml-4 inline-flex items-center px-1 pt-1 text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                                            Admin
+                                        </Link>
+                                    )}
                                 </div>
 
                                 {/* Mobile Menu Button */}
@@ -72,7 +78,7 @@ export default function DashboardLayout({
                 {/* Mobile Menu Content */}
                 {isMenuOpen && (
                     <div className="sm:hidden">
-                        <div className="space-y-1 pb-3 pt-2">
+                            <div className="space-y-1 pb-3 pt-2">
                             <Link
                                 href="/dashboard"
                                 onClick={() => setIsMenuOpen(false)}
@@ -80,6 +86,15 @@ export default function DashboardLayout({
                             >
                                 Dashboard
                             </Link>
+                            {session?.user && (session.user as any).role === 'admin' && (
+                                <Link
+                                    href="/admin"
+                                    onClick={() => setIsMenuOpen(false)}
+                                    className="block border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                                >
+                                    Admin
+                                </Link>
+                            )}
                             <button
                                 onClick={() => signOut({ callbackUrl: '/login' })}
                                 className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"

@@ -17,10 +17,12 @@ export async function GET(
         const { id } = await params;
         await connectDB();
 
-        const instance = await BotInstance.findOne({
-            _id: id,
-            userId: (session.user as any).id
-        }).populate('botId');
+        const query: any = { _id: id };
+        if ((session.user as any).role !== 'admin') {
+            query.userId = (session.user as any).id;
+        }
+
+        const instance = await BotInstance.findOne(query).populate('botId').populate('userId', 'name');
 
         if (!instance) {
             return NextResponse.json(
@@ -54,8 +56,13 @@ export async function PATCH(
         await connectDB();
 
         // Ensure user owns the instance
+        const updateQuery: any = { _id: id };
+        if ((session.user as any).role !== 'admin') {
+            updateQuery.userId = (session.user as any).id;
+        }
+
         const instance = await BotInstance.findOneAndUpdate(
-            { _id: id, userId: (session.user as any).id },
+            updateQuery,
             { $set: body },
             { new: true, runValidators: true }
         );
@@ -119,10 +126,12 @@ export async function DELETE(
         const { id } = await params;
         await connectDB();
 
-        const instance = await BotInstance.findOneAndDelete({
-            _id: id,
-            userId: (session.user as any).id
-        });
+        const deleteQuery: any = { _id: id };
+        if ((session.user as any).role !== 'admin') {
+            deleteQuery.userId = (session.user as any).id;
+        }
+
+        const instance = await BotInstance.findOneAndDelete(deleteQuery);
 
         if (!instance) {
             return NextResponse.json(

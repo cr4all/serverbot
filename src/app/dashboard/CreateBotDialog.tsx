@@ -232,7 +232,19 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     onChange={handleChange}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
+                                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                                If you don't know how to create the appkey, follow the instructions here:{' '}
+                                <a
+                                    href="https://support.developer.betfair.com/hc/en-us/articles/19192200541468-How-do-I-create-an-Application-Key"
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="underline text-blue-600 dark:text-blue-400"
+                                >
+                                    Betfair Developer: How to create an Application Key
+                                </a>
+                            </p>
                             </div>
+                            
 
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>

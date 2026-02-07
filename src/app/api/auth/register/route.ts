@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import connectDB from '@/lib/db';
 import User from '@/models/User';
+import Bot from '@/models/Bot';
+import BotAssignment from '@/models/BotAssignment';
 
 export async function POST(request: Request) {
     try {
@@ -34,6 +36,16 @@ export async function POST(request: Request) {
             email,
             password: hashedPassword,
         });
+        // After user creation, auto-assign any default templates
+        try {
+            const defaults = await Bot.find({ isDefault: true }).lean();
+            if (defaults && defaults.length > 0) {
+                const docs = defaults.map((b: any) => ({ botId: b._id, userId: user._id, createdBy: user._id }));
+                await BotAssignment.insertMany(docs);
+            }
+        } catch (e) {
+            console.error('Error assigning default bots to new user', e);
+        }
 
         return NextResponse.json(
             { message: 'User created successfully', userId: user._id },

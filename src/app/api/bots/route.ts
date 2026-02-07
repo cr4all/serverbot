@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Bot from '@/models/Bot';
 import BotAssignment from '@/models/BotAssignment';
+import User from '@/models/User';
 
 export async function GET(request: Request) {
     try {
@@ -48,6 +49,25 @@ export async function POST(request: Request) {
         await connectDB();
 
         const bot = await Bot.create(body);
+
+        // If this template is marked default, assign to all existing users (skip existing assignments)
+        if (body.isDefault) {
+            try {
+                const users = await User.find({}).lean();
+                const userIds = users.map((u: any) => String(u._id));
+
+                if (userIds.length > 0) {
+                    // find already assigned users for this bot
+                    const existing = await BotAssignment.find({ botId: bot._id, userId: { $in: userIds } }).lean();
+                    const existingSet = new Set(existing.map((e: any) => String(e.userId)));
+                    const toCreate = userIds.filter((id) => !existingSet.has(id)).map((id) => ({ botId: bot._id, userId: id, createdBy: null }));
+                    if (toCreate.length > 0) await BotAssignment.insertMany(toCreate);
+                }
+            } catch (e) {
+                console.error('Error assigning default bot to users:', e);
+            }
+        }
+
         return NextResponse.json(bot, { status: 201 });
     } catch (error) {
         console.error('Error creating bot:', error);

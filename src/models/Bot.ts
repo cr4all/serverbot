@@ -22,6 +22,10 @@ const BotSchema = new mongoose.Schema(
             type: String,
             default: '1.0.0',
         },
+        isDefault: {
+            type: Boolean,
+            default: false,
+        },
     },
     { timestamps: true }
 );

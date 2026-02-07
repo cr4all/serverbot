@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import Bot from '@/models/Bot'; // ensure model is registered
 import User from '@/models/User'; // ensure model is registered
 import BotInstance from '@/models/BotInstance';
+import BotAssignment from '@/models/BotAssignment';
 
 export async function GET(request: Request) {
     try {
@@ -19,9 +20,9 @@ export async function GET(request: Request) {
 
         await connectDB();
 
-        const instances = await BotInstance.find({ userId })
-            .populate('botId') // Populate bot template info
-            .sort({ createdAt: -1 });
+            const instances = await BotInstance.find({ userId })
+                .populate('botId') // Populate bot template info
+                .sort({ createdAt: -1 });
 
         return NextResponse.json(instances);
     } catch (error) {
@@ -46,8 +47,21 @@ export async function POST(request: Request) {
 
         await connectDB();
 
+        // Validate that the requested botId is allowed for this user
+        if ((session.user as any).role !== 'admin') {
+            const botId = body.botId;
+            if (!botId) {
+                return NextResponse.json({ error: 'botId is required' }, { status: 400 });
+            }
+
+            const allowed = await BotAssignment.findOne({ botId, userId });
+            if (!allowed) {
+                return NextResponse.json({ error: 'Forbidden: bot template not assigned to user' }, { status: 403 });
+            }
+        }
+
         // Force userId from session
-        const instanceData = { ...body, userId:userId, lastBalance: 0 };
+        const instanceData = { ...body, userId: userId, lastBalance: 0 };
 
         const instance = await BotInstance.create(instanceData);
 

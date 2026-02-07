@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import AssignBotsToUserDialog from '../AssignBotsToUserDialog';
 
 export default function AdminUsersPage() {
     const [users, setUsers] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [assignModalUserId, setAssignModalUserId] = useState<string | null>(null);
 
     useEffect(() => {
         fetchUsers();
@@ -78,7 +80,8 @@ export default function AdminUsersPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Instances</th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Running</th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Stopped</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Role</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Assigned Templates</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Role</th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Joined</th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                         </tr>
@@ -91,6 +94,14 @@ export default function AdminUsersPage() {
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.totalInstances ?? 0}</td>
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.runningInstances ?? 0}</td>
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.stoppedInstances ?? 0}</td>
+                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                    <button
+                                        onClick={() => setAssignModalUserId(user._id)}
+                                        className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400"
+                                    >
+                                        Edit
+                                    </button>
+                                </td>
                                 <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
                                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                                         {user.role}
@@ -124,6 +135,13 @@ export default function AdminUsersPage() {
                     </tbody>
                 </table>
             </div>
+            {assignModalUserId && (
+                <AssignBotsToUserDialog
+                    userId={assignModalUserId}
+                    onClose={() => setAssignModalUserId(null)}
+                    onSaved={() => fetchUsers()}
+                />
+            )}
         </div>
     );
 }

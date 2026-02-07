@@ -47,6 +47,12 @@ export async function POST(request: Request) {
 
         await connectDB();
 
+        // Validate locale if provided
+        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
+        if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
+            return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
+        }
+
         // Validate that the requested botId is allowed for this user
         if ((session.user as any).role !== 'admin') {
             const botId = body.botId;

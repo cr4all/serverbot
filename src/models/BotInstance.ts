@@ -24,6 +24,15 @@ const BotInstanceSchema = new mongoose.Schema(
         config: {
             type: mongoose.Schema.Types.Mixed,
             default: {},
+            validate: {
+                validator: function (v: any) {
+                    if (!v) return true; // nothing to validate
+                    const allowed = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
+                    if (v.locale === undefined || v.locale === null) return true; // optional
+                    return allowed.includes(v.locale);
+                },
+                message: (props: any) => `Invalid locale '${props.value?.locale}'`,
+            },
         },
         status: {
             type: String,

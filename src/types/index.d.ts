@@ -29,6 +29,7 @@ export interface IBot {
 
 // Bot Instance Types
 export type BotStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'STOPPING';
+export type Locale = 'COMMON' | 'SPAIN' | 'ITALY' | 'AUSTRALIA';
 
 export interface IBotInstance {
     _id: string | Types.ObjectId;
@@ -36,7 +37,7 @@ export interface IBotInstance {
     userId: string | Types.ObjectId | IUser;
     name: string;
     lastBalance: number;
-    config: Record<string, any>;
+    config: Record<string, any> & { locale?: Locale };
     status: BotStatus;
     lastHeartbeat?: Date;
     createdAt: Date;

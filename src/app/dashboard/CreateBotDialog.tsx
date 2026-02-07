@@ -13,6 +13,7 @@ interface CreateBotDialogProps {
 export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialData }: CreateBotDialogProps) {
     const [loading, setLoading] = useState(false);
     const [templates, setTemplates] = useState<any[]>([]);
+    const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
     const [formData, setFormData] = useState({
         botId: '',
         name: '',
@@ -21,6 +22,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             username: '',
             password: '',
             appKey: '',
+            locale: 'COMMON',
             licenseKey: '',
             stake: '',
             // Proxy settings
@@ -41,10 +43,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     botId: (initialData.botId as any)?._id || (initialData.botId as string),
                     name: initialData.name,
                     lastBalance: initialData.lastBalance,
-                    config: {
+                        config: {
                         username: initialData.config?.username || '',
                         password: initialData.config?.password || '',
                             appKey: initialData.config?.appKey || '',
+                            locale: initialData.config?.locale || 'COMMON',
                             licenseKey: initialData.config?.licenseKey || '',
                             stake: initialData.config?.stake || '',
                             proxyType: initialData.config?.proxyType || '',
@@ -61,10 +64,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     botId: '',
                     name: '',
                     lastBalance: 0,
-                    config: {
+                        config: {
                         username: '',
                         password: '',
                         appKey: '',
+                        locale: 'COMMON',
                         licenseKey: '',
                         stake: '',
                         proxyType: '',
@@ -110,6 +114,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
+
+        // Validate locale is allowed
+        if (!allowedLocales.includes(formData.config.locale)) {
+            alert(`Locale must be one of: ${allowedLocales.join(', ')}`);
+            setLoading(false);
+            return;
+        }
 
         try {
             let botIdToUse = formData.botId;
@@ -245,6 +256,22 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             </p>
                             </div>
                             
+                            <div className="sm:col-span-2">
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Locale</label>
+                                <select
+                                    name="locale"
+                                    value={formData.config.locale}
+                                    onChange={handleChange}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    {allowedLocales.map((loc) => (
+                                        <option key={loc} value={loc}>
+                                            {loc}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+
 
                             <div>
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>

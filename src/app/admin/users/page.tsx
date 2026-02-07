@@ -75,59 +75,77 @@ export default function AdminUsersPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50 dark:bg-gray-750">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Name</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Email</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Instances</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Running</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Stopped</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Assigned Templates</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Role</th>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Joined</th>
-                            <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-48">Name</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-64">Email</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-20">Instances</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-20">Running</th>
+                            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 w-20">Stopped</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-36">Assigned</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-28">Role</th>
+                            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 w-36">Joined</th>
+                            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 w-28">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                         {users.map((user) => (
                             <tr key={user._id}>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{user.name}</td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.email}</td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.totalInstances ?? 0}</td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.runningInstances ?? 0}</td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">{user.stoppedInstances ?? 0}</td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-white">{user.name}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400 truncate">{user.email}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-center text-gray-500 dark:text-gray-400">{user.totalInstances ?? 0}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-center text-gray-500 dark:text-gray-400">{user.runningInstances ?? 0}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-center text-gray-500 dark:text-gray-400">{user.stoppedInstances ?? 0}</td>
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                     <button
                                         onClick={() => setAssignModalUserId(user._id)}
-                                        className="mr-3 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400"
+                                        className="mr-2 text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 inline-flex items-center"
+                                        title="Edit assigned templates"
+                                        aria-label="Edit assigned templates"
                                     >
-                                        Edit
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.25 2.25 0 113.182 3.182L7.5 19.213l-4 1 1-4L16.862 3.487z" />
+                                        </svg>
                                     </button>
                                 </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                     <span className={`rounded-full px-2 py-1 text-xs font-semibold ${user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
                                         {user.role}
                                     </span>
                                 </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500 dark:text-gray-400">
+                                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                                     {new Date(user.createdAt).toLocaleDateString()}
                                 </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                                <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium">
                                     <button
                                         onClick={() => toggleRole(user._id, user.role)}
-                                        className="mr-3 text-blue-600 hover:text-blue-900 dark:text-blue-400"
+                                        className="mr-3 text-blue-600 hover:text-blue-900 dark:text-blue-400 inline-flex items-center"
+                                        title="Change role"
+                                        aria-label="Change role"
                                     >
-                                        Change Role
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                            <path d="M10 2a4 4 0 100 8 4 4 0 000-8zM2 18a8 8 0 0116 0H2z" />
+                                        </svg>
                                     </button>
                                     <button
                                         onClick={() => resetPassword(user._id)}
-                                        className="mr-3 text-yellow-600 hover:text-yellow-900 dark:text-yellow-400"
+                                        className="mr-3 text-yellow-600 hover:text-yellow-900 dark:text-yellow-400 inline-flex items-center"
+                                        title="Reset password"
+                                        aria-label="Reset password"
                                     >
-                                        Reset Password
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 7a3 3 0 10-6 0v1H6v6h12V8h-3V7z" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M7 15v2a4 4 0 004 4h2a4 4 0 004-4v-2" />
+                                        </svg>
                                     </button>
                                     <button
                                         onClick={() => deleteUser(user._id)}
-                                        className="text-red-600 hover:text-red-900 dark:text-red-400"
+                                        className="text-red-600 hover:text-red-900 dark:text-red-400 inline-flex items-center"
+                                        title="Delete user"
+                                        aria-label="Delete user"
                                     >
-                                        Delete
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7v10a2 2 0 002 2h2a2 2 0 002-2V7" />
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M10 11v6M14 11v6M9 7l1-3h4l1 3" />
+                                        </svg>
                                     </button>
                                 </td>
                             </tr>

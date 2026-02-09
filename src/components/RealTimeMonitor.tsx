@@ -62,6 +62,11 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
     };
 
     useEffect(() => {
+        // Clear any previous logs, bets, and tips when this monitor is opened or when instanceId changes
+        setLogs([]);
+        setBets([]);
+        setTips([]);
+
         // socket connection
         socketRef.current = io(SOCKET_URL, {
             query: { instanceId },

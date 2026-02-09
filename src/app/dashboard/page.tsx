@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
 
@@ -147,11 +148,18 @@ function BotCard({
                     <div className="flex items-center space-x-3">
                         <div className={`h-3 w-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-red-500'}`} />
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate" title={instance.name}>
-                            
-                                <a href={`/dashboard/instance/${instance._id}`} className="hover:underline hover:text-blue-500">
+                            <div className="flex items-center gap-2">
+                                <Link href={`/dashboard/instance/${instance._id}`} className="hover:underline hover:text-blue-500 truncate">
                                     {instance.name}
-                                </a>
-                            
+                                </Link>
+                                <Link
+                                    href={`/dashboard/instance/${instance._id}`}
+                                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
+                                    aria-label={`Open ${instance.name} details`}
+                                >
+                                    See Details
+                                </Link>
+                            </div>
                         </h3>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">

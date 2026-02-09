@@ -21,7 +21,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         config: {
             username: '',
             password: '',
-            appKey: '',
             locale: 'COMMON',
             licenseKey: '',
             stake: '',
@@ -46,7 +45,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         config: {
                         username: initialData.config?.username || '',
                         password: initialData.config?.password || '',
-                            appKey: initialData.config?.appKey || '',
                             locale: initialData.config?.locale || 'COMMON',
                             licenseKey: initialData.config?.licenseKey || '',
                             stake: initialData.config?.stake || '',
@@ -67,7 +65,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         config: {
                         username: '',
                         password: '',
-                        appKey: '',
                         locale: 'COMMON',
                         licenseKey: '',
                         stake: '',
@@ -232,29 +229,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Configuration</h3>
 
                         <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">AppKey</label>
-                                <input
-                                    type="text"
-                                    name="appKey"
-                                    required
-                                    placeholder="your-app-key"
-                                    value={formData.config.appKey}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                                <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
-                                If you don't know how to create the appkey, follow the instructions here:{' '}
-                                <a
-                                    href="https://support.developer.betfair.com/hc/en-us/articles/19192200541468-How-do-I-create-an-Application-Key"
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="underline text-blue-600 dark:text-blue-400"
-                                >
-                                    Betfair Developer: How to create an Application Key
-                                </a>
-                            </p>
-                            </div>
                             
                             <div className="sm:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Locale</label>

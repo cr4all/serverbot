@@ -1,11 +1,18 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { io, Socket } from 'socket.io-client';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
+
+interface LogEntry {
+    timestamp: string;
+    level: string;
+    message: string;
+}
 
 export default function DashboardPage() {
     const { data: session, status } = useSession();
@@ -105,6 +112,9 @@ export default function DashboardPage() {
     );
 }
 
+const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
+const RECENT_LOGS_MAX = 3;
+
 function BotCard({
     instance,
     refresh,
@@ -115,6 +125,45 @@ function BotCard({
     onEdit: () => void;
 }) {
     const isRunning = instance.status === 'RUNNING';
+    const instanceId = instance._id as string;
+
+    const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
+    const socketRef = useRef<Socket | null>(null);
+
+    const [isEditingBalance, setIsEditingBalance] = useState(false);
+    const [editBalanceValue, setEditBalanceValue] = useState(String(instance.lastBalance ?? 0));
+    const [balanceError, setBalanceError] = useState<string | null>(null);
+
+    // WebSocket: subscribe to logs for this instance, keep last 2–3
+    useEffect(() => {
+        setRecentLogs([]);
+        socketRef.current = io(SOCKET_URL, {
+            query: { instanceId },
+            transports: ['websocket'],
+        });
+
+        socketRef.current.on('connect', () => {
+            socketRef.current?.send(JSON.stringify({ subscribe: instanceId }));
+        });
+
+        socketRef.current.on('log', (data: LogEntry) => {
+            setRecentLogs((prev) => [data, ...prev].slice(0, RECENT_LOGS_MAX));
+        });
+
+        return () => {
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
+        };
+    }, [instanceId]);
+
+    // Keep edit value in sync when instance refreshes (e.g. after save)
+    useEffect(() => {
+        if (!isEditingBalance) {
+            setEditBalanceValue(String(instance.lastBalance ?? 0));
+        }
+    }, [instance.lastBalance, isEditingBalance]);
 
     const toggleStatus = async () => {
         const newStatus = isRunning ? 'STOPPED' : 'RUNNING';
@@ -139,7 +188,39 @@ function BotCard({
         } catch (e) {
             console.error(e);
         }
-    }
+    };
+
+    const saveBalance = async () => {
+        setBalanceError(null);
+        const num = parseFloat(editBalanceValue);
+        if (Number.isNaN(num) || num < 0) {
+            setBalanceError('Enter a valid number ≥ 0');
+            return;
+        }
+        try {
+            const res = await fetch(`/api/bot-instances/${instance._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lastBalance: num }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                setBalanceError((err as any).error || 'Failed to update balance');
+                return;
+            }
+            setIsEditingBalance(false);
+            refresh();
+        } catch (e) {
+            console.error(e);
+            setBalanceError('Failed to update balance');
+        }
+    };
+
+    const cancelBalanceEdit = () => {
+        setIsEditingBalance(false);
+        setEditBalanceValue(String(instance.lastBalance ?? 0));
+        setBalanceError(null);
+    };
 
     return (
         <div className="overflow-hidden rounded-lg bg-white shadow transition hover:shadow-md dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
@@ -148,18 +229,9 @@ function BotCard({
                     <div className="flex items-center space-x-3">
                         <div className={`h-3 w-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-red-500'}`} />
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate" title={instance.name}>
-                            <div className="flex items-center gap-2">
-                                <Link href={`/dashboard/instance/${instance._id}`} className="hover:underline hover:text-blue-500 truncate">
-                                    {instance.name}
-                                </Link>
-                                <Link
-                                    href={`/dashboard/instance/${instance._id}`}
-                                    className="ml-2 inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100"
-                                    aria-label={`Open ${instance.name} details`}
-                                >
-                                    See Details
-                                </Link>
-                            </div>
+                            <Link href={`/dashboard/instance/${instance._id}`} className="hover:underline hover:text-blue-500 truncate">
+                                {instance.name}
+                            </Link>
                         </h3>
                     </div>
                     <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
@@ -175,14 +247,77 @@ function BotCard({
                             User: <span className="font-medium text-gray-900 dark:text-white">{instance.config.username}</span>
                         </p>
                     )}
-                    {instance.lastBalance !== undefined && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Balance: <span className="font-medium text-gray-900 dark:text-white">${instance.lastBalance}</span>
-                        </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                        Balance:{' '}
+                        {isEditingBalance ? (
+                            <span className="inline-flex flex-wrap items-center gap-1">
+                                <input
+                                    type="number"
+                                    min={0}
+                                    step="any"
+                                    value={editBalanceValue}
+                                    onChange={(e) => setEditBalanceValue(e.target.value)}
+                                    className="w-24 rounded border border-gray-300 px-2 py-0.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={saveBalance}
+                                    className="rounded bg-blue-600 px-2 py-0.5 text-xs text-white hover:bg-blue-700"
+                                >
+                                    Save
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={cancelBalanceEdit}
+                                    className="rounded border border-gray-300 px-2 py-0.5 text-xs dark:border-gray-600 dark:hover:bg-gray-600"
+                                >
+                                    Cancel
+                                </button>
+                            </span>
+                        ) : (
+                            <span className="font-medium text-gray-900 dark:text-white">
+                                ${instance.lastBalance ?? 0}
+                                <button
+                                    type="button"
+                                    onClick={() => setIsEditingBalance(true)}
+                                    className="ml-1.5 text-xs text-blue-600 hover:underline dark:text-blue-400"
+                                    aria-label="Update balance"
+                                >
+                                    Update
+                                </button>
+                            </span>
+                        )}
+                    </p>
+                    {balanceError && (
+                        <p className="text-xs text-red-600 dark:text-red-400">{balanceError}</p>
                     )}
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         Status: <span className={`font-medium ${isRunning ? 'text-green-600' : 'text-red-600'}`}>{instance.status}</span>
                     </p>
+                    <p className="text-sm">
+                        <Link
+                            href={`/dashboard/instance/${instance._id}`}
+                            className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-semibold text-blue-700 hover:bg-blue-100 dark:bg-gray-700 dark:text-blue-300 dark:hover:bg-gray-600"
+                            aria-label={`Open ${instance.name} details`}
+                        >
+                            See Details
+                        </Link>
+                    </p>
+                </div>
+                {/* Recent logs (2–3) */}
+                <div className="mt-3 min-h-[4.5rem] rounded border border-gray-200 bg-gray-50 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-700/50">
+                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Recent logs</p>
+                    {recentLogs.length === 0 ? (
+                        <p className="text-xs text-gray-500 dark:text-gray-400">—</p>
+                    ) : (
+                        <ul className="space-y-0.5 overflow-hidden">
+                            {recentLogs.map((log, i) => (
+                                <li key={i} className="text-xs text-gray-700 dark:text-gray-300 truncate" title={log.message}>
+                                    [{log.level}] {log.message}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
                 </div>
                 <div className="mt-6 flex flex-wrap gap-2">
                     <button
@@ -194,7 +329,6 @@ function BotCard({
                     >
                         {isRunning ? 'Stop' : 'Start'}
                     </button>
-                    {/* NEW: Edit Button */}
                     <button
                         onClick={onEdit}
                         disabled={isRunning}

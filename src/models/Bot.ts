@@ -1,5 +1,24 @@
 import mongoose from 'mongoose';
 
+const ConfigParamSchema = new mongoose.Schema(
+    {
+        paramName: {
+            type: String,
+            required: true,
+        },
+        dataType: {
+            type: String,
+            enum: ['String', 'number', 'UNION'],
+            required: true,
+        },
+        unionValues: {
+            type: [mongoose.Schema.Types.Mixed],
+            default: undefined,
+        },
+    },
+    { _id: false }
+);
+
 const BotSchema = new mongoose.Schema(
     {
         name: {
@@ -14,9 +33,18 @@ const BotSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        subtype: {
+            type: Number,
+            required: true,
+            default: 0,
+        },
         defaultConfig: {
             type: mongoose.Schema.Types.Mixed,
             default: {},
+        },
+        configParams: {
+            type: [ConfigParamSchema],
+            default: [],
         },
         version: {
             type: String,

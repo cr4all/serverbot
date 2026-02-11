@@ -201,6 +201,32 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         </select>
                     </div>
 
+                    {formData.botId && (() => {
+                        const selected = templates.find((t) => t._id === formData.botId);
+                        const params = selected?.configParams;
+                        if (!params?.length) return null;
+                        return (
+                            <div className="rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50">
+                                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Template config parameters</div>
+                                <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
+                                    {params.map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => (
+                                        <li key={i} className="flex flex-wrap items-baseline gap-x-2">
+                                            <span className="font-medium">{p.paramName}</span>
+                                            <span className="text-gray-500 dark:text-gray-400">({p.dataType}</span>
+                                            {p.dataType === 'UNION' && p.unionValues?.length ? (
+                                                <span className="text-gray-500 dark:text-gray-400">
+                                                    : {p.unionValues.join(', ')})
+                                                </span>
+                                            ) : (
+                                                <span className="text-gray-500 dark:text-gray-400">)</span>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        );
+                    })()}
+
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Instance Name</label>
                         <input

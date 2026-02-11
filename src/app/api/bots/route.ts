@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import mongoose from 'mongoose';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Bot from '@/models/Bot';
@@ -48,7 +49,26 @@ export async function POST(request: Request) {
         const body = await request.json();
         await connectDB();
 
-        const bot = await Bot.create(body);
+        const configParams = Array.isArray(body.configParams) ? body.configParams : [];
+        const createPayload = {
+            name: body.name,
+            description: body.description ?? '',
+            type: body.type,
+            subtype: typeof body.subtype === 'number' ? body.subtype : 0,
+            defaultConfig: body.defaultConfig ?? {},
+            configParams,
+            version: body.version ?? '1.0.0',
+            isDefault: !!body.isDefault,
+        };
+        const bot = await Bot.create(createPayload);
+        if (configParams.length > 0 && mongoose.connection?.db) {
+            await mongoose.connection.db.collection(Bot.collection.name).updateOne(
+                { _id: bot._id },
+                { $set: { configParams } }
+            );
+        }
+
+        const refetched = await Bot.findById(bot._id).lean();
 
         // If this template is marked default, assign to all existing users (skip existing assignments)
         if (body.isDefault) {
@@ -68,7 +88,7 @@ export async function POST(request: Request) {
             }
         }
 
-        return NextResponse.json(bot, { status: 201 });
+        return NextResponse.json(refetched ?? bot, { status: 201 });
     } catch (error) {
         console.error('Error creating bot:', error);
         return NextResponse.json(

@@ -16,13 +16,24 @@ export interface IUser {
 // Bot Types (Template)
 export type BotType = 'CHAT' | 'TRADING' | 'CRAWLER';
 
+export type ConfigParamDataType = 'String' | 'number' | 'UNION';
+
+export interface IConfigParam {
+    paramName: string;
+    dataType: ConfigParamDataType;
+    unionValues?: (string | number)[];
+}
+
 export interface IBot {
     _id: string | Types.ObjectId;
     name: string;
     description?: string;
-    type: BotType;
+    type: string;
+    subtype: number;
     defaultConfig: Record<string, any>;
+    configParams?: IConfigParam[];
     version: string;
+    isDefault?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { ConfigParamDataType, IConfigParam } from '@/types';
 
-const DATA_TYPES: ConfigParamDataType[] = ['String', 'number', 'UNION'];
+const DATA_TYPES: ConfigParamDataType[] = ['String', 'Number', 'Union', 'Boolean'];
 
 const emptyParam = (): IConfigParam => ({
     paramName: '',
@@ -60,13 +60,16 @@ export default function AdminBotsPage() {
                 ...formData,
                 configParams: formData.configParams
                     .filter((p) => p.paramName.trim() !== '')
-                    .map((p) => ({
-                        paramName: p.paramName.trim(),
-                        dataType: p.dataType,
-                        ...(p.dataType === 'UNION' && {
-                            unionValues: parseUnionValues(p.unionValues),
-                        }),
-                    })),
+                    .map((p) => {
+                        const param = p as ConfigParamWithStr;
+                        return {
+                            paramName: param.paramName.trim(),
+                            dataType: param.dataType,
+                            ...(param.dataType === 'Union' && {
+                                unionValues: parseUnionValuesFromString(getUnionValuesString(param)),
+                            }),
+                        };
+                    }),
             };
 
             let res;
@@ -114,6 +117,9 @@ export default function AdminBotsPage() {
                       paramName: p.paramName || '',
                       dataType: (p.dataType || 'String') as ConfigParamDataType,
                       unionValues: p.unionValues || [],
+                      unionValuesStr: Array.isArray(p.unionValues)
+                          ? p.unionValues.join(', ')
+                          : undefined,
                   }))
                 : [],
         });
@@ -144,16 +150,29 @@ export default function AdminBotsPage() {
         });
     };
 
+    type ConfigParamWithStr = IConfigParam & { unionValuesStr?: string };
+
     const setUnionValuesFromString = (index: number, str: string) => {
-        const values = str
+        setFormData((prev) => {
+            const next = [...prev.configParams] as ConfigParamWithStr[];
+            next[index] = { ...next[index], unionValuesStr: str };
+            return { ...prev, configParams: next };
+        });
+    };
+
+    const getUnionValuesString = (p: ConfigParamWithStr) =>
+        p.unionValuesStr !== undefined && p.unionValuesStr !== null
+            ? p.unionValuesStr
+            : (p.unionValues || []).join(', ');
+
+    function parseUnionValuesFromString(str: string): (string | number)[] {
+        if (typeof str !== 'string' || !str.trim()) return [];
+        return str
             .split(',')
             .map((s) => s.trim())
             .filter(Boolean)
             .map((s) => (Number.isNaN(Number(s)) ? s : Number(s)));
-        updateParam(index, 'unionValues', values);
-    };
-
-    const getUnionValuesString = (p: IConfigParam) => (p.unionValues || []).join(', ');
+    }
 
     const handleDelete = async (bot: any) => {
         if (!confirm(`Delete template "${bot.name}"? Assignments for this template will also be removed.`)) return;
@@ -279,7 +298,7 @@ export default function AdminBotsPage() {
                                                 ))}
                                             </select>
                                         </div>
-                                        {p.dataType === 'UNION' && (
+                                        {p.dataType === 'Union' && (
                                             <div className="min-w-[180px] flex-1">
                                                 <span className="text-xs text-gray-500">Allowed values (comma-separated)</span>
                                                 <input
@@ -370,7 +389,7 @@ export default function AdminBotsPage() {
                                     {bot.configParams.map((p: any, i: number) => (
                                         <li key={i}>
                                             {p.paramName}: {p.dataType}
-                                            {p.dataType === 'UNION' && p.unionValues?.length
+                                            {p.dataType === 'Union' && p.unionValues?.length
                                                 ? ` (${p.unionValues.join(', ')})`
                                                 : ''}
                                         </li>

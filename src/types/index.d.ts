@@ -16,7 +16,7 @@ export interface IUser {
 // Bot Types (Template)
 export type BotType = 'CHAT' | 'TRADING' | 'CRAWLER';
 
-export type ConfigParamDataType = 'String' | 'number' | 'UNION';
+export type ConfigParamDataType = 'String' | 'Number' | 'Union' | 'Boolean';
 
 export interface IConfigParam {
     paramName: string;

@@ -8,7 +8,7 @@ const ConfigParamSchema = new mongoose.Schema(
         },
         dataType: {
             type: String,
-            enum: ['String', 'number', 'UNION'],
+            enum: ['String', 'Number', 'Union', 'Boolean'],
             required: true,
         },
         unionValues: {

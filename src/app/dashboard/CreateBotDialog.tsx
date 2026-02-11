@@ -10,8 +10,13 @@ interface CreateBotDialogProps {
     initialData?: IBotInstance | null;
 }
 
+const STEP_SELECT_TEMPLATE = 1;
+const STEP_CONFIGURE_INSTANCE = 2;
+
 export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialData }: CreateBotDialogProps) {
+    const [step, setStep] = useState(STEP_SELECT_TEMPLATE);
     const [loading, setLoading] = useState(false);
+    const [templatesLoading, setTemplatesLoading] = useState(false);
     const [templates, setTemplates] = useState<any[]>([]);
     const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
     const [formData, setFormData] = useState({
@@ -37,32 +42,32 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         if (isOpen) {
             fetchTemplates();
             if (initialData) {
-                // Populate form for editing
+                setStep(STEP_CONFIGURE_INSTANCE);
                 setFormData({
                     botId: (initialData.botId as any)?._id || (initialData.botId as string),
                     name: initialData.name,
                     lastBalance: initialData.lastBalance,
-                        config: {
+                    config: {
                         username: initialData.config?.username || '',
                         password: initialData.config?.password || '',
-                            locale: initialData.config?.locale || 'COMMON',
-                            licenseKey: initialData.config?.licenseKey || '',
-                            stake: initialData.config?.stake || '',
-                            proxyType: initialData.config?.proxyType || '',
-                            proxyHost: initialData.config?.proxyHost || '',
-                            proxyPort: initialData.config?.proxyPort || '',
-                            proxyUsername: initialData.config?.proxyUsername || '',
-                            proxyPassword: initialData.config?.proxyPassword || '',
-                            ...initialData.config, // preserve other keys if any
-                    }
+                        locale: initialData.config?.locale || 'COMMON',
+                        licenseKey: initialData.config?.licenseKey || '',
+                        stake: initialData.config?.stake || '',
+                        proxyType: initialData.config?.proxyType || '',
+                        proxyHost: initialData.config?.proxyHost || '',
+                        proxyPort: initialData.config?.proxyPort || '',
+                        proxyUsername: initialData.config?.proxyUsername || '',
+                        proxyPassword: initialData.config?.proxyPassword || '',
+                        ...initialData.config,
+                    },
                 });
             } else {
-                // Reset for creation
+                setStep(STEP_SELECT_TEMPLATE);
                 setFormData({
                     botId: '',
                     name: '',
                     lastBalance: 0,
-                        config: {
+                    config: {
                         username: '',
                         password: '',
                         locale: 'COMMON',
@@ -80,31 +85,30 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     }, [isOpen, initialData]);
 
     const fetchTemplates = async () => {
+        setTemplatesLoading(true);
         try {
             const res = await fetch('/api/bots');
             if (res.ok) {
                 const data = await res.json();
                 setTemplates(data);
-                // Set default template only if creating new and none selected.
-                // Use functional updater to read latest state instead of closed-over `formData`.
-                if (data.length > 0 && !initialData) {
-                    setFormData((prev) => (prev.botId ? prev : { ...prev, botId: data[0]._id }));
-                }
             }
         } catch (e) {
             console.error(e);
+        } finally {
+            setTemplatesLoading(false);
         }
     };
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        if (name in formData.config) {
+        const topLevelKeys = ['botId', 'name', 'lastBalance'];
+        if (topLevelKeys.includes(name)) {
+            setFormData((prev) => ({ ...prev, [name]: name === 'lastBalance' ? Number(value) : value }));
+        } else {
             setFormData((prev) => ({
                 ...prev,
                 config: { ...prev.config, [name]: value },
             }));
-        } else {
-            setFormData((prev) => ({ ...prev, [name]: value }));
         }
     };
 
@@ -143,9 +147,21 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
             const method = initialData ? 'PATCH' : 'POST';
 
+            const selectedTemplate = templates.find((t) => t._id === formData.botId);
+            const configParams = selectedTemplate?.configParams ?? [];
+            const config: Record<string, unknown> = { ...formData.config };
+            for (const p of configParams) {
+                const raw = config[p.paramName];
+                if (p.dataType === 'number' && (raw !== '' && raw !== undefined && raw !== null)) {
+                    config[p.paramName] = Number(raw);
+                } else if (p.dataType === 'Boolean') {
+                    config[p.paramName] = raw === true || raw === 'true';
+                }
+            }
+
             const body: any = {
                 name: formData.name,
-                config: formData.config,
+                config,
             };
 
             if (!initialData) {
@@ -175,31 +191,173 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-            <div className="max-h-[95vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
-                <h2 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">
-                    {initialData ? 'Edit Bot Configuration' : 'Create New Bot'}
-                </h2>
+    const selectedTemplate = templates.find((t) => t._id === formData.botId);
+    const isCreateFlow = !initialData;
 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bot Type</label>
-                        <select
-                            name="botId"
-                            value={formData.botId}
-                            onChange={handleChange}
-                            disabled={!!initialData} // Disable template change when editing
-                            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white disabled:opacity-50"
-                        >
-                            {templates.length === 0 && <option value="">No Bot to use</option>}
-                            {templates.map((t) => (
-                                <option key={t._id} value={t._id}>
-                                    {t.name} ({t.type})
-                                </option>
-                            ))}
-                        </select>
+    const StepIndicator = () =>
+        isCreateFlow ? (
+            <div className="mb-6 flex items-center gap-2 rounded-lg bg-gray-100 p-2 dark:bg-gray-700/50" role="tablist" aria-label="Creation steps">
+                <div
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
+                        step === STEP_SELECT_TEMPLATE
+                            ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                    }`}
+                >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current/10 text-xs font-bold">
+                        {step > STEP_SELECT_TEMPLATE ? '✓' : '1'}
+                    </span>
+                    Choose Bot Template
+                </div>
+                <div className="h-4 w-px bg-gray-300 dark:bg-gray-600" aria-hidden />
+                <div
+                    className={`flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition ${
+                        step === STEP_CONFIGURE_INSTANCE
+                            ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-800 dark:text-blue-400'
+                            : 'text-gray-600 dark:text-gray-400'
+                    }`}
+                >
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-current/10 text-xs font-bold">2</span>
+                    Configure
+                </div>
+            </div>
+        ) : null;
+
+    // Step 1: Select bot template (create flow only)
+    if (isCreateFlow && step === STEP_SELECT_TEMPLATE) {
+        return (
+            <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+                onClick={(e) => e.target === e.currentTarget && onClose()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="dialog-title-step1"
+            >
+                <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl dark:bg-gray-800 max-h-[90vh] flex flex-col">
+                    <div className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                        <h2 id="dialog-title-step1" className="text-lg font-bold text-gray-900 dark:text-white">
+                            Create New Bot
+                        </h2>
+                        <StepIndicator />
                     </div>
+                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                        {templatesLoading ? (
+                            <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
+                                <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400" />
+                                <p className="mt-3 text-sm">Loading templates…</p>
+                            </div>
+                        ) : templates.length === 0 ? (
+                            <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 py-12 text-center dark:border-gray-600 dark:bg-gray-700/30">
+                                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">No templates available</p>
+                                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                                    Contact an admin to get access to a bot template.
+                                </p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {templates.map((t) => {
+                                    const isSelected = formData.botId === t._id;
+                                    const params = t.configParams ?? [];
+                                    return (
+                                        <button
+                                            key={t._id}
+                                            type="button"
+                                            onClick={() => setFormData((prev) => ({ ...prev, botId: t._id }))}
+                                            className={`relative w-full rounded-xl border-2 p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
+                                                isSelected
+                                                    ? 'border-blue-500 bg-blue-50/80 dark:border-blue-400 dark:bg-blue-900/25'
+                                                    : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 dark:border-gray-600 dark:bg-gray-700/50 dark:hover:border-gray-500 dark:hover:bg-gray-700'
+                                            }`}
+                                            aria-pressed={isSelected}
+                                        >
+                                            {isSelected && (
+                                                <span className="absolute right-3 top-3 rounded-full bg-blue-500 px-2 py-0.5 text-xs font-medium text-white dark:bg-blue-400">
+                                                    Selected
+                                                </span>
+                                            )}
+                                            <div className="pr-20 font-semibold text-gray-900 dark:text-white">{t.name}</div>
+                                            {t.description && (
+                                                <p className="mt-1 line-clamp-2 text-sm text-gray-600 dark:text-gray-400">{t.description}</p>
+                                            )}
+                                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                                <span className="rounded-md bg-gray-200/80 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-600 dark:text-gray-300">
+                                                    {t.type}
+                                                </span>
+                                                {t.version && (
+                                                    <span className="rounded-md bg-gray-200/80 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-600 dark:text-gray-400">
+                                                        v{t.version}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {params.length > 0 && (
+                                                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                    Parameters: {params.map((p: { paramName: string }) => p.paramName).join(', ')}
+                                                </p>
+                                            )}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                    <div className="shrink-0 flex justify-between gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setStep(STEP_CONFIGURE_INSTANCE)}
+                            disabled={!formData.botId || templatesLoading}
+                            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+                        >
+                            Next: Configure instance
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Step 2: Configure instance (or edit)
+    return (
+        <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+            onClick={(e) => e.target === e.currentTarget && onClose()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="dialog-title-step2"
+        >
+            <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-2xl dark:bg-gray-800">
+                <div className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                    <h2 id="dialog-title-step2" className="text-lg font-bold text-gray-900 dark:text-white">
+                        {initialData ? 'Edit Bot Configuration' : 'Create New Bot'}
+                    </h2>
+                    <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">
+                        {initialData ? 'Update your instance settings.' : 'Configure name, credentials, and options.'}
+                    </p>
+                    <StepIndicator />
+                </div>
+
+                <form onSubmit={handleSubmit} className="flex flex-1 flex-col overflow-hidden">
+                    <div className="flex-1 overflow-y-auto px-6 py-4">
+                        <div className="space-y-5">
+                            <section aria-labelledby="template-heading">
+                                <h3 id="template-heading" className="sr-only">Selected template</h3>
+                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Bot template</label>
+                                <div className="mt-1.5 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm dark:border-gray-600 dark:bg-gray-700/50 dark:text-gray-300">
+                                    {selectedTemplate ? (
+                                        <span>
+                                            <span className="font-medium">{selectedTemplate.name}</span>
+                                        </span>
+                                    ) : (
+                                        <span className="text-gray-500">No template selected</span>
+                                    )}
+                                </div>
+                            </section>
 
                     {formData.botId && (() => {
                         const selected = templates.find((t) => t._id === formData.botId);
@@ -207,22 +365,75 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         if (!params?.length) return null;
                         return (
                             <div className="rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50">
-                                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Template config parameters</div>
-                                <ul className="mt-2 space-y-1 text-sm text-gray-700 dark:text-gray-300">
-                                    {params.map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => (
-                                        <li key={i} className="flex flex-wrap items-baseline gap-x-2">
-                                            <span className="font-medium">{p.paramName}</span>
-                                            <span className="text-gray-500 dark:text-gray-400">({p.dataType}</span>
-                                            {p.dataType === 'UNION' && p.unionValues?.length ? (
-                                                <span className="text-gray-500 dark:text-gray-400">
-                                                    : {p.unionValues.join(', ')})
-                                                </span>
-                                            ) : (
-                                                <span className="text-gray-500 dark:text-gray-400">)</span>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
+                                <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">Template config parameters</div>
+                                <div className="space-y-3">
+                                    {params.map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => {
+                                        const name = p.paramName;
+                                        const val = (formData.config as Record<string, unknown>)[name];
+                                        if (p.dataType === 'Boolean') {
+                                            const boolVal = val === true || val === 'true';
+                                            return (
+                                                <div key={i}>
+                                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">{p.paramName}</label>
+                                                    <select
+                                                        name={name}
+                                                        value={boolVal ? 'true' : 'false'}
+                                                        onChange={handleChange}
+                                                        className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    >
+                                                        <option value="false">No</option>
+                                                        <option value="true">Yes</option>
+                                                    </select>
+                                                </div>
+                                            );
+                                        }
+                                        const isUnion = p.dataType === 'UNION' || p.dataType === 'Union';
+                                        if (isUnion && p.unionValues?.length) {
+                                            return (
+                                                <div key={i}>
+                                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">{p.paramName}</label>
+                                                    <select
+                                                        name={name}
+                                                        value={String(val ?? '')}
+                                                        onChange={handleChange}
+                                                        className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    >
+                                                        <option value="">Select...</option>
+                                                        {p.unionValues.map((v) => (
+                                                            <option key={String(v)} value={String(v)}>{String(v)}</option>
+                                                        ))}
+                                                    </select>
+                                                </div>
+                                            );
+                                        }
+                                        if (p.dataType === 'number') {
+                                            return (
+                                                <div key={i}>
+                                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">{p.paramName}</label>
+                                                    <input
+                                                        type="number"
+                                                        name={name}
+                                                        value={val !== undefined && val !== null && val !== '' ? Number(val) : ''}
+                                                        onChange={handleChange}
+                                                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                    />
+                                                </div>
+                                            );
+                                        }
+                                        return (
+                                            <div key={i}>
+                                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">{p.paramName}</label>
+                                                <input
+                                                    type="text"
+                                                    name={name}
+                                                    value={String(val ?? '')}
+                                                    onChange={handleChange}
+                                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                                />
+                                            </div>
+                                        );
+                                    })}
+                                </div>
                             </div>
                         );
                     })()}
@@ -385,21 +596,34 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             </div>
                         </div>
                     </div>
+                        </div>
+                    </div>
 
-                    <div className="mt-6 flex justify-end gap-3">
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className="rounded-md border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
-                        >
-                            Cancel
-                        </button>
+                    <div className="shrink-0 flex justify-between gap-3 border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+                        <div className="flex gap-2">
+                            {!initialData && (
+                                <button
+                                    type="button"
+                                    onClick={() => setStep(STEP_SELECT_TEMPLATE)}
+                                    className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                                >
+                                    Back
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className="rounded-lg border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-700"
+                            >
+                                Cancel
+                            </button>
+                        </div>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
+                            className="rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
                         >
-                            {loading ? 'Saving...' : (initialData ? 'Update Bot' : 'Create Bot')}
+                            {loading ? 'Saving…' : (initialData ? 'Update Bot' : 'Create Bot')}
                         </button>
                     </div>
                 </form>

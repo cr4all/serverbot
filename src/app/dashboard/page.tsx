@@ -233,11 +233,11 @@ function BotCard({
                 </div>
                 <div className="mt-4 space-y-1">
                     <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Type: <span className="font-medium">{(instance.botId as any)?.name || 'Unknown'}</span>
+                        Bot template: <span className="font-medium">{(instance.botId as any)?.name || 'Unknown'}</span>
                     </p>
                     {instance.config?.username && (
                         <p className="text-sm text-gray-500 dark:text-gray-400">
-                            User: <span className="font-medium text-gray-900 dark:text-white">{instance.config.username}</span>
+                            Username: <span className="font-medium text-gray-900 dark:text-white">{instance.config.username}</span>
                         </p>
                     )}
                     <p className="text-sm text-gray-500 dark:text-gray-400">

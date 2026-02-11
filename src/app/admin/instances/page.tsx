@@ -18,6 +18,7 @@ export default function AdminInstancesPage() {
     const [limit, setLimit] = useState(10);
     const [total, setTotal] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
+    const [runningCount, setRunningCount] = useState(0);
 
     const [filters, setFilters] = useState({
         name: '',
@@ -49,6 +50,7 @@ export default function AdminInstancesPage() {
                 setInstances(data.instances ?? []);
                 setTotal(data.pagination?.total ?? 0);
                 setTotalPages(data.pagination?.totalPages ?? 0);
+                setRunningCount(data.stats?.running ?? 0);
                 setPage(p);
                 setLimit(l);
             }
@@ -179,9 +181,21 @@ export default function AdminInstancesPage() {
 
     return (
         <div className="space-y-6">
-            <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Instance Monitoring</h1>
-                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor all bot instances across the platform</p>
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Instance Monitoring</h1>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor all bot instances across the platform</p>
+                </div>
+                <div className="flex gap-3 text-sm">
+                    <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-800">
+                        <span className="text-gray-500 dark:text-gray-400">Total</span>
+                        <span className="font-semibold text-gray-900 dark:text-white">{total}</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 dark:border-emerald-800 dark:bg-emerald-900/20">
+                        <span className="text-emerald-600 dark:text-emerald-400">Running</span>
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">{runningCount}</span>
+                    </div>
+                </div>
             </div>
 
             <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-800">

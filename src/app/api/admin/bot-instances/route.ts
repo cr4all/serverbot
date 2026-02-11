@@ -60,7 +60,7 @@ export async function GET(req: NextRequest) {
             filter.botId = { $in: botIds };
         }
 
-        const [instances, total] = await Promise.all([
+        const [instances, total, runningCount] = await Promise.all([
             BotInstance.find(filter)
                 .populate('botId', 'name type')
                 .populate('userId', 'name email')
@@ -69,10 +69,12 @@ export async function GET(req: NextRequest) {
                 .limit(limit)
                 .lean(),
             BotInstance.countDocuments(filter),
+            BotInstance.countDocuments({ ...filter, status: 'RUNNING' }),
         ]);
         return NextResponse.json({
             instances,
             pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+            stats: { total, running: runningCount },
         });
     } catch (e) {
         console.error(e);

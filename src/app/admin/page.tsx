@@ -25,7 +25,7 @@ export default function AdminOverview() {
             setStats({
                 users: Array.isArray(u) ? u.length : 0,
                 bots: Array.isArray(b) ? b.length : 0,
-                instances: Array.isArray(i) ? i.length : 0,
+                instances: i?.pagination?.total ?? (Array.isArray(i) ? i.length : 0),
             });
         } catch (e) {
             console.error(e);

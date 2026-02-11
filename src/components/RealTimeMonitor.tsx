@@ -136,7 +136,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         let mounted = true;
         const fetchBets = async () => {
             try {
-                const res = await fetch(`/api/bet-history/${instanceId}?limit=50`);
+                const res = await fetch(`/api/bet-history/${instanceId}?limit=10`);
                 if (!res.ok) return;
                 const dataRaw = await res.json();
                 if (mounted) {

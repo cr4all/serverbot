@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { useSession } from 'next-auth/react';
 import { io, Socket } from 'socket.io-client';
 import he from 'he';
 
@@ -33,6 +34,8 @@ interface TipEntry {
 }
 
 export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
+    const { data: session } = useSession();
+    const isAdmin = (session?.user as any)?.role === 'admin';
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [bets, setBets] = useState<BetEntry[]>([]);
     const [tips, setTips] = useState<TipEntry[]>([]);
@@ -166,6 +169,16 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         };
     }, [instanceId]);
 
+    const removeBet = async (betId: string) => {
+        try {
+            const res = await fetch(`/api/bet-history/${instanceId}?betId=${encodeURIComponent(betId)}`, { method: 'DELETE' });
+            if (!res.ok) return;
+            setBets((prev) => prev.filter((b) => b._id !== betId));
+        } catch (e) {
+            console.error('Failed to remove bet', e);
+        }
+    };
+
     const decodeTipMessage = (s: string) => {
         if (!s) return s;
         let decoded = s;
@@ -227,6 +240,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Failures</th>
+                                {isAdmin && <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800 text-sm">
@@ -243,10 +257,24 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                     </td>
                                     <td className={`px-3 py-2 font-medium text-gray-700 dark:text-gray-200`}>{bet.stake}</td>
                                     <td className={`px-3 py-2 font-medium ${bet.failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>{bet.failedCount}</td>
+                                    {isAdmin && (
+                                        <td className="px-3 py-2 text-right">
+                                            <button
+                                                onClick={() => removeBet(bet._id)}
+                                                aria-label="Remove bet"
+                                                className="inline-flex items-center rounded p-1 text-gray-400 hover:bg-red-100 hover:text-red-600 dark:hover:bg-red-900/30 dark:hover:text-red-400"
+                                                title="Remove bet"
+                                            >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                </svg>
+                                            </button>
+                                        </td>
+                                    )}
                                 </tr>
                             ))}
                             {bets.length === 0 && (
-                                <tr><td colSpan={5} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
+                                <tr><td colSpan={isAdmin ? 6 : 5} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
                             )}
                         </tbody>
                     </table>

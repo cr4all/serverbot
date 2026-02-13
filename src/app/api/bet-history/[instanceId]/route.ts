@@ -41,3 +41,41 @@ export async function GET(request: NextRequest, context: { params: any }) {
     return NextResponse.json({ error: 'Failed to fetch bet history' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: NextRequest, context: { params: any }) {
+  try {
+    const params = await context.params;
+    const { instanceId } = params as { instanceId: string };
+
+    const session: any = await getServerSession(authOptions);
+    if (!session || !session.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    await connectDB();
+
+    if ((session.user as any).role !== 'admin') {
+      return NextResponse.json({ error: 'Admin only' }, { status: 403 });
+    }
+
+    const url = new URL(request.url);
+    const betId = url.searchParams.get('betId');
+    if (!betId) {
+      return NextResponse.json({ error: 'betId query param required' }, { status: 400 });
+    }
+
+    const result = await BetHistory.findOneAndDelete({
+      _id: betId,
+      botInstanceId: instanceId,
+    });
+
+    if (!result) {
+      return NextResponse.json({ error: 'Bet not found or already deleted' }, { status: 404 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error('Error deleting bet history:', error);
+    return NextResponse.json({ error: 'Failed to delete bet' }, { status: 500 });
+  }
+}

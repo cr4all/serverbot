@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
+import mongoose from 'mongoose';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
@@ -16,6 +17,7 @@ export async function GET(req: NextRequest) {
         await connectDB();
         const { searchParams } = new URL(req.url);
         const name = searchParams.get('name')?.trim() || '';
+        const instanceId = searchParams.get('instanceId')?.trim() || '';
         const owner = searchParams.get('owner')?.trim() || '';
         const template = searchParams.get('template')?.trim() || '';
         const status = searchParams.get('status')?.trim() || '';
@@ -29,6 +31,13 @@ export async function GET(req: NextRequest) {
 
         if (name) {
             filter.name = { $regex: name, $options: 'i' };
+        }
+        if (instanceId) {
+            try {
+                filter._id = new mongoose.Types.ObjectId(instanceId);
+            } catch {
+                filter._id = new mongoose.Types.ObjectId('000000000000000000000000');
+            }
         }
         if (status) {
             filter.status = status;

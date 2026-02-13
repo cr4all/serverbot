@@ -22,6 +22,7 @@ export default function AdminInstancesPage() {
 
     const [filters, setFilters] = useState({
         name: '',
+        instanceId: '',
         owner: '',
         template: '',
         status: '',
@@ -37,6 +38,7 @@ export default function AdminInstancesPage() {
         try {
             const params = new URLSearchParams();
             if (f.name) params.set('name', f.name);
+            if (f.instanceId) params.set('instanceId', f.instanceId);
             if (f.owner) params.set('owner', f.owner);
             if (f.template) params.set('template', f.template);
             if (f.status) params.set('status', f.status);
@@ -76,6 +78,7 @@ export default function AdminInstancesPage() {
     const clearFilters = () => {
         const empty = {
             name: '',
+            instanceId: '',
             owner: '',
             template: '',
             status: '',
@@ -205,7 +208,7 @@ export default function AdminInstancesPage() {
                     </svg>
                     <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-300">Filters</h2>
                 </div>
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-6">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-7">
                     <div>
                         <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Instance Name</label>
                         <input
@@ -213,6 +216,16 @@ export default function AdminInstancesPage() {
                             placeholder="Search…"
                             value={filters.name}
                             onChange={(e) => handleFilterChange('name', e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
+                        />
+                    </div>
+                    <div>
+                        <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Instance ID</label>
+                        <input
+                            type="text"
+                            placeholder="Filter by ID…"
+                            value={filters.instanceId}
+                            onChange={(e) => handleFilterChange('instanceId', e.target.value)}
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
                         />
                     </div>
@@ -355,7 +368,12 @@ export default function AdminInstancesPage() {
                     <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
                         {instances.map((instance) => (
                             <tr key={instance._id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td className="whitespace-nowrap px-6 py-4 text-sm font-medium text-gray-900 dark:text-white">{instance.name}</td>
+                                <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                    <div className="flex flex-col gap-0.5">
+                                        <span className="font-medium text-gray-900 dark:text-white">{instance.name}</span>
+                                        <span className="font-mono text-xs text-gray-500 dark:text-gray-400" title={instance._id}>{instance._id}</span>
+                                    </div>
+                                </td>
                                 <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={`${instance.userId?.name || ''} (${instance.userId?.email || ''})`}>
                                     {instance.userId?.name} <span className="text-xs">({instance.userId?.email})</span>
                                 </td>

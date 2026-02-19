@@ -40,7 +40,7 @@ export interface IBot {
 
 // Bot Instance Types
 export type BotStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'STOPPING';
-export type Locale = 'COMMON' | 'SPAIN' | 'ITALY' | 'AUSTRALIA';
+export type Locale = 'COMMON' | 'SPAIN' | 'ITALY' | 'AUSTRALIA' | 'FINLAND';
 
 export interface IBotInstance {
     _id: string | Types.ObjectId;

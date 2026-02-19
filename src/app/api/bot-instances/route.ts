@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         await connectDB();
 
         // Validate locale if provided
-        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
+        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
         if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
             return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
         }

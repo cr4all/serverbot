@@ -27,7 +27,7 @@ const BotInstanceSchema = new mongoose.Schema(
             validate: {
                 validator: function (v: any) {
                     if (!v) return true; // nothing to validate
-                    const allowed = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
+                    const allowed = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
                     if (v.locale === undefined || v.locale === null) return true; // optional
                     return allowed.includes(v.locale);
                 },

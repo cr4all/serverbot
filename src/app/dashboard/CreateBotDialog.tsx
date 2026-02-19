@@ -18,7 +18,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const [loading, setLoading] = useState(false);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [templates, setTemplates] = useState<any[]>([]);
-    const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
+    const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
     const [formData, setFormData] = useState({
         botId: '',
         name: '',

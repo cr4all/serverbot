@@ -56,7 +56,7 @@ export async function PATCH(
         await connectDB();
 
         // Validate locale if being updated
-        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA'];
+        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
         if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
             return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
         }

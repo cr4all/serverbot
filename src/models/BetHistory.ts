@@ -32,6 +32,11 @@ const BetHistorySchema = new mongoose.Schema(
       enum: ['SUCCESS', 'FAILED'],
       default: 'SUCCESS',
     },
+    
+    balance: {
+      type: Number,
+      default: 0,
+    },
 
   },
   {

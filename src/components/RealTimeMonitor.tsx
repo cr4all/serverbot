@@ -24,6 +24,7 @@ interface BetEntry {
     stake: number;
     failedCount: number;
     status: 'SUCCESS' | 'FAILED';
+    balance?: number;
 }
 
 interface TipEntry {
@@ -98,6 +99,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                 stake: data.stake || data.amount || 0,
                 status: data.status || (data.result === 'WIN' ? 'SUCCESS' : 'FAILED'),
                 failedCount: data.failedCount || 0,
+                balance: data.balance,
             };
             setBets((prev) => [mapped as BetEntry, ...prev].slice(0, 20));
         });
@@ -152,6 +154,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         stake: b.stake,
                         failedCount: b.failedCount || 0,
                         status: b.status,
+                        balance: b.balance,
                     } as BetEntry));
                     setBets(mapped);
                 }
@@ -239,6 +242,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Balance</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Failures</th>
                                 {isAdmin && <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>}
                             </tr>
@@ -256,6 +260,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                         <div className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-sm">{decodeTipMessage(bet.tip || bet.tip_id || '')}</div>
                                     </td>
                                     <td className={`px-3 py-2 font-medium text-gray-700 dark:text-gray-200`}>{bet.stake}</td>
+                                    <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{bet.balance != null ? `$${Number(bet.balance).toFixed(2)}` : '—'}</td>
                                     <td className={`px-3 py-2 font-medium ${bet.failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>{bet.failedCount}</td>
                                     {isAdmin && (
                                         <td className="px-3 py-2 text-right">
@@ -274,7 +279,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                 </tr>
                             ))}
                             {bets.length === 0 && (
-                                <tr><td colSpan={isAdmin ? 6 : 5} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
+                                <tr><td colSpan={isAdmin ? 7 : 6} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
                             )}
                         </tbody>
                     </table>

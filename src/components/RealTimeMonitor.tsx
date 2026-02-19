@@ -199,40 +199,8 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
 
     return (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Logs Section */}
+            {/* Betting History - full width first row */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800 lg:col-span-2">
-                <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">System Logs</h3>
-                    <div className="flex items-center gap-3">
-                        <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
-                            Live Balance: <span className="text-lg font-bold text-gray-900 dark:text-white">${currentBalance.toFixed(2)}</span>
-                        </div>
-                        <button
-                            onClick={() => fetchBalance()}
-                            aria-label="Refresh balance"
-                            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
-                        >
-                            Refresh
-                        </button>
-                        <span className={`inline-flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} title={isConnected ? 'Connected' : 'Simulating/Connecting'} />
-                    </div>
-                </div>
-                <div className="h-64 overflow-y-auto rounded bg-gray-900 p-4 font-mono text-xs text-gray-300 sm:h-80">
-                    {logs.map((log, i) => (
-                        <div key={i} className="mb-1">
-                            <span className="text-gray-500">[{log.timestamp}]</span>{' '}
-                            <span className={log.level === 'ERROR' ? 'text-red-400' : log.level === 'WARN' ? 'text-yellow-400' : 'text-blue-400'}>
-                                {log.level}
-                            </span>:{' '}
-                            {log.message}
-                        </div>
-                    ))}
-                    {logs.length === 0 && <div className="text-gray-600">No logs received yet...</div>}
-                </div>
-            </div>
-
-            {/* Betting History */}
-            <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
                 <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
                 <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -286,7 +254,39 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                 </div>
             </div>
 
-            {/* Tip History */}
+            {/* System Logs - same row as Latest Tips */}
+            <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
+                <div className="mb-4 flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">System Logs</h3>
+                    <div className="flex items-center gap-3">
+                        <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
+                            Live Balance: <span className="text-lg font-bold text-gray-900 dark:text-white">${currentBalance.toFixed(2)}</span>
+                        </div>
+                        <button
+                            onClick={() => fetchBalance()}
+                            aria-label="Refresh balance"
+                            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                        >
+                            Refresh
+                        </button>
+                        <span className={`inline-flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} title={isConnected ? 'Connected' : 'Simulating/Connecting'} />
+                    </div>
+                </div>
+                <div className="h-64 overflow-y-auto rounded bg-gray-900 p-4 font-mono text-xs text-gray-300 sm:h-80">
+                    {logs.map((log, i) => (
+                        <div key={i} className="mb-1">
+                            <span className="text-gray-500">[{log.timestamp}]</span>{' '}
+                            <span className={log.level === 'ERROR' ? 'text-red-400' : log.level === 'WARN' ? 'text-yellow-400' : 'text-blue-400'}>
+                                {log.level}
+                            </span>:{' '}
+                            {log.message}
+                        </div>
+                    ))}
+                    {logs.length === 0 && <div className="text-gray-600">No logs received yet...</div>}
+                </div>
+            </div>
+
+            {/* Latest Tips - same row as System Logs */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
                 <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">Latest Tips</h3>
                 <div className="space-y-3">

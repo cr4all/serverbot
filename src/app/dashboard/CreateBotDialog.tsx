@@ -52,7 +52,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         password: initialData.config?.password || '',
                         locale: initialData.config?.locale || 'COMMON',
                         licenseKey: initialData.config?.licenseKey || '',
-                        stake: initialData.config?.stake || '',
+                        stake: initialData.config?.stake != null ? String(initialData.config.stake) : '',
                         proxyType: initialData.config?.proxyType || '',
                         proxyHost: initialData.config?.proxyHost || '',
                         proxyPort: initialData.config?.proxyPort || '',
@@ -150,6 +150,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             const selectedTemplate = templates.find((t) => t._id === formData.botId);
             const configParams = selectedTemplate?.configParams ?? [];
             const config: Record<string, unknown> = { ...formData.config };
+            // Ensure stake is sent as number (integer or float)
+            const rawStake = config.stake;
+            if (rawStake !== '' && rawStake !== undefined && rawStake !== null) {
+                config.stake = Number(rawStake);
+            } else {
+                delete config.stake;
+            }
             for (const p of configParams) {
                 const raw = config[p.paramName];
                 if (p.dataType === 'number' && (raw !== '' && raw !== undefined && raw !== null)) {
@@ -513,8 +520,10 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             <div className="sm:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Amount</label>
                                 <input
-                                    type="text"
+                                    type="number"
                                     name="stake"
+                                    step="any"
+                                    min="0"
                                     placeholder="Input stake amount"
                                     value={formData.config.stake}
                                     onChange={handleChange}

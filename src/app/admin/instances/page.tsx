@@ -26,6 +26,7 @@ export default function AdminInstancesPage() {
         owner: '',
         template: '',
         status: '',
+        licenseKey: '',
         createdFrom: '',
         createdTo: '',
     });
@@ -42,6 +43,7 @@ export default function AdminInstancesPage() {
             if (f.owner) params.set('owner', f.owner);
             if (f.template) params.set('template', f.template);
             if (f.status) params.set('status', f.status);
+            if (f.licenseKey) params.set('licenseKey', f.licenseKey);
             if (f.createdFrom) params.set('createdFrom', f.createdFrom);
             if (f.createdTo) params.set('createdTo', f.createdTo);
             params.set('page', String(p));
@@ -82,6 +84,7 @@ export default function AdminInstancesPage() {
             owner: '',
             template: '',
             status: '',
+            licenseKey: '',
             createdFrom: '',
             createdTo: '',
         };
@@ -261,6 +264,16 @@ export default function AdminInstancesPage() {
                                 <option key={s} value={s}>{s}</option>
                             ))}
                         </select>
+                    </div>
+                    <div>
+                        <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">License Key</label>
+                        <input
+                            type="text"
+                            placeholder="Search by license…"
+                            value={filters.licenseKey}
+                            onChange={(e) => handleFilterChange('licenseKey', e.target.value)}
+                            className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
+                        />
                     </div>
                     <div>
                         <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Created From</label>

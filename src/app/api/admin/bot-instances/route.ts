@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
         const owner = searchParams.get('owner')?.trim() || '';
         const template = searchParams.get('template')?.trim() || '';
         const status = searchParams.get('status')?.trim() || '';
+        const licenseKey = searchParams.get('licenseKey')?.trim() || '';
         const createdFrom = searchParams.get('createdFrom')?.trim() || '';
         const createdTo = searchParams.get('createdTo')?.trim() || '';
         const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -67,6 +68,9 @@ export async function GET(req: NextRequest) {
             const bots = await Bot.find({ name: { $regex: template, $options: 'i' } }).select('_id');
             const botIds = bots.map((b) => b._id);
             filter.botId = { $in: botIds };
+        }
+        if (licenseKey) {
+            filter['config.licenseKey'] = { $regex: licenseKey, $options: 'i' };
         }
 
         const [instances, total, runningCount] = await Promise.all([

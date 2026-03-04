@@ -5,7 +5,7 @@ import connectDB from '@/lib/db';
 import User from '@/models/User';
 import BotInstance from '@/models/BotInstance';
 
-export async function GET() {
+export async function GET(request: Request) {
     const session: any = await getServerSession(authOptions);
     if (!session || session.user.role !== 'admin') {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -14,7 +14,13 @@ export async function GET() {
     try {
         await connectDB();
 
-        const users = await User.find({}).sort({ createdAt: -1 }).lean();
+        const { searchParams } = new URL(request.url);
+        const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
+        const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '10', 10)));
+        const skip = (page - 1) * limit;
+
+        const total = await User.countDocuments();
+        const users = await User.find({}).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
 
         // Aggregate bot instance counts per user
         const agg = await BotInstance.aggregate([
@@ -45,7 +51,10 @@ export async function GET() {
             stoppedInstances: countsMap[String(u._id)]?.stopped || 0,
         }));
 
-        return NextResponse.json(safeUsers);
+        return NextResponse.json({
+            users: safeUsers,
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        });
     } catch (e) {
         return NextResponse.json({ error: 'Database error' }, { status: 500 });
     }

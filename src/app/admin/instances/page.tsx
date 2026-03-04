@@ -19,6 +19,9 @@ export default function AdminInstancesPage() {
     const [total, setTotal] = useState(0);
     const [totalPages, setTotalPages] = useState(0);
     const [runningCount, setRunningCount] = useState(0);
+    const [configEditMode, setConfigEditMode] = useState(false);
+    const [configEditValue, setConfigEditValue] = useState('');
+    const [configSaving, setConfigSaving] = useState(false);
 
     const [filters, setFilters] = useState({
         name: '',
@@ -133,6 +136,8 @@ export default function AdminInstancesPage() {
     };
 
     const viewInstance = async (id: string) => {
+        setConfigEditMode(false);
+        setConfigEditValue('');
         setDetailLoading(true);
         try {
             const [resInst, resBets] = await Promise.all([
@@ -160,6 +165,53 @@ export default function AdminInstancesPage() {
             setBets([]);
         } finally {
             setDetailLoading(false);
+        }
+    };
+
+    const startEditConfig = () => {
+        setConfigEditValue(JSON.stringify(selected?.config ?? {}, null, 2));
+        setConfigEditMode(true);
+    };
+
+    const cancelEditConfig = () => {
+        setConfigEditMode(false);
+        setConfigEditValue('');
+    };
+
+    const saveConfig = async () => {
+        if (!selected?._id) return;
+        let parsed: Record<string, unknown>;
+        try {
+            parsed = JSON.parse(configEditValue);
+        } catch {
+            alert('Invalid JSON. Please fix the syntax and try again.');
+            return;
+        }
+        if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+            alert('Config must be a JSON object.');
+            return;
+        }
+        setConfigSaving(true);
+        try {
+            const res = await fetch(`/api/bot-instances/${selected._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config: parsed }),
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                setSelected(updated);
+                setConfigEditMode(false);
+                setConfigEditValue('');
+            } else {
+                const err = await res.json();
+                alert(err?.error || 'Failed to update config');
+            }
+        } catch (e) {
+            console.error(e);
+            alert('Failed to update config');
+        } finally {
+            setConfigSaving(false);
         }
     };
 
@@ -459,7 +511,7 @@ export default function AdminInstancesPage() {
                             <p className="font-mono text-xs text-gray-400 dark:text-gray-500">{selected._id}</p>
                         </div>
                         <button
-                            onClick={() => { setSelected(null); setBets([]); }}
+                            onClick={() => { setSelected(null); setBets([]); setConfigEditMode(false); setConfigEditValue(''); }}
                             className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                         >
                             Close
@@ -470,8 +522,45 @@ export default function AdminInstancesPage() {
                             <RealTimeMonitor instanceId={selected._id} />
                         </div>
                         <div>
-                            <h3 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Config</h3>
-                            <pre className="max-h-60 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">{JSON.stringify(selected.config || {}, null, 2)}</pre>
+                            <div className="mb-2 flex items-center justify-between">
+                                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Config</h3>
+                                {configEditMode ? (
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={saveConfig}
+                                            disabled={configSaving}
+                                            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                        >
+                                            {configSaving ? 'Saving…' : 'Save'}
+                                        </button>
+                                        <button
+                                            onClick={cancelEditConfig}
+                                            disabled={configSaving}
+                                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <button
+                                        onClick={startEditConfig}
+                                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                                    >
+                                        Edit Config
+                                    </button>
+                                )}
+                            </div>
+                            {configEditMode ? (
+                                <textarea
+                                    value={configEditValue}
+                                    onChange={(e) => setConfigEditValue(e.target.value)}
+                                    className="max-h-60 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white p-4 font-mono text-xs text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+                                    spellCheck={false}
+                                    placeholder="{}"
+                                />
+                            ) : (
+                                <pre className="max-h-60 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">{JSON.stringify(selected.config || {}, null, 2)}</pre>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -147,7 +147,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
             const method = initialData ? 'PATCH' : 'POST';
 
-            const selectedTemplate = templates.find((t) => t._id === formData.botId);
+            const selectedTemplate = templates.find((t) => String(t._id) === String(formData.botId));
             const configParams = selectedTemplate?.configParams ?? [];
             const config: Record<string, unknown> = { ...formData.config };
             // Ensure stake is sent as number (integer or float)
@@ -164,6 +164,10 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 } else if (p.dataType === 'Boolean') {
                     config[p.paramName] = raw === true || raw === 'true';
                 }
+            }
+            if (selectedTemplate?.requiresCredentials === false) {
+                delete config.username;
+                delete config.password;
             }
 
             const body: any = {
@@ -198,7 +202,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
     if (!isOpen) return null;
 
-    const selectedTemplate = templates.find((t) => t._id === formData.botId);
+    const selectedTemplate = templates.find((t) => String(t._id) === String(formData.botId));
     const isCreateFlow = !initialData;
 
     const StepIndicator = () =>
@@ -263,7 +267,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         ) : (
                             <div className="space-y-3">
                                 {templates.map((t) => {
-                                    const isSelected = formData.botId === t._id;
+                                    const isSelected = String(formData.botId) === String(t._id);
                                     const params = t.configParams ?? [];
                                     return (
                                         <button
@@ -367,7 +371,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             </section>
 
                     {formData.botId && (() => {
-                        const selected = templates.find((t) => t._id === formData.botId);
+                        const selected = templates.find((t) => String(t._id) === String(formData.botId));
                         const params = selected?.configParams;
                         if (!params?.length) return null;
                         return (
@@ -490,32 +494,33 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                 </select>
                             </div>
 
+                            {selectedTemplate?.requiresCredentials !== false && (
+                                <>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>
+                                        <input
+                                            type="text"
+                                            name="username"
+                                            required
+                                            value={formData.config.username}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
 
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>
-                                <input
-                                    type="text"
-                                    name="username"
-                                    required
-                                    value={formData.config.username}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                            </div>
-
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Password</label>
-                                <input
-                                    type="password"
-                                    name="password"
-                                    required
-                                    value={formData.config.password}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                            </div>
-
-                            
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Password</label>
+                                        <input
+                                            type="password"
+                                            name="password"
+                                            required
+                                            value={formData.config.password}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                </>
+                            )}
 
                             <div className="sm:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Amount</label>

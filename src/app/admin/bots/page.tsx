@@ -22,6 +22,7 @@ export default function AdminBotsPage() {
         description: '',
         version: '1.0.0',
         isDefault: false,
+        requiresCredentials: true,
         configParams: [] as IConfigParam[],
     });
 
@@ -50,6 +51,7 @@ export default function AdminBotsPage() {
         description: '',
         version: '1.0.0',
         isDefault: false,
+        requiresCredentials: true,
         configParams: [] as IConfigParam[],
     });
 
@@ -112,6 +114,7 @@ export default function AdminBotsPage() {
             description: bot.description || '',
             version: bot.version || '1.0.0',
             isDefault: !!bot.isDefault,
+            requiresCredentials: bot.requiresCredentials !== false,
             configParams: params.length
                 ? params.map((p: any) => ({
                       paramName: p.paramName || '',
@@ -333,6 +336,18 @@ export default function AdminBotsPage() {
                                     className="h-4 w-4 rounded border-gray-300 dark:bg-gray-700"
                                 />
                                 <span>Assign this template to new users by default</span>
+                            </label>
+                        </div>
+
+                        <div className="sm:col-span-2 flex items-center gap-3">
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.requiresCredentials}
+                                    onChange={(e) => setFormData({ ...formData, requiresCredentials: e.target.checked })}
+                                    className="h-4 w-4 rounded border-gray-300 dark:bg-gray-700"
+                                />
+                                <span>Require username and password when creating instances</span>
                             </label>
                         </div>
 

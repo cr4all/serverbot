@@ -54,6 +54,10 @@ const BotSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
+        requiresCredentials: {
+            type: Boolean,
+            default: true,
+        },
     },
     { timestamps: true }
 );

@@ -33,6 +33,7 @@ export async function PATCH(request: Request, { params }: { params: any }) {
             configParams,
             version: body.version ?? before.version ?? '1.0.0',
             isDefault: body.isDefault !== undefined ? !!body.isDefault : !!before.isDefault,
+            requiresCredentials: body.requiresCredentials !== undefined ? !!body.requiresCredentials : (before.requiresCredentials !== false),
         };
         await Bot.findByIdAndUpdate(id, updatePayload);
         if (mongoose.connection?.db) {

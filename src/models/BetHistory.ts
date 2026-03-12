@@ -37,6 +37,11 @@ const BetHistorySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    orderId: {
+      type: String,
+      required: true,
+      default: '',
+    },
 
   },
   {

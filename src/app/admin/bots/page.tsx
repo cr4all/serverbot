@@ -35,8 +35,8 @@ const BotLogo = ({
     const tierLabel = tier === 'free' ? 'Free' : tier === 'paid' ? 'Paid' : null;
     const tierBadgeClass =
         tier === 'free'
-            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+            ? 'bg-emerald-600 text-white ring-emerald-200 shadow-emerald-950/45 dark:bg-emerald-500 dark:text-emerald-950 dark:ring-emerald-100'
+            : 'bg-amber-500 text-amber-950 ring-amber-100 shadow-amber-950/45 dark:bg-amber-400 dark:text-amber-950 dark:ring-amber-50';
 
     useEffect(() => {
         setLogoExtIndex(0);
@@ -44,13 +44,13 @@ const BotLogo = ({
 
     if (hasError) {
         return (
-            <div className="relative h-[50px] w-[120px] shrink-0">
+            <div className="relative h-[50px] w-[120px] shrink-0 overflow-hidden rounded-md">
                 <div className="flex h-full w-full items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
                     <span className="text-xs font-semibold">BOT</span>
                 </div>
                 {tierLabel && (
                     <span
-                        className={`absolute right-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${tierBadgeClass}`}
+                        className={`absolute left-0 top-2 z-20 -translate-x-3 rotate-[-45deg] rounded-sm px-5 py-0.5 text-[10px] font-extrabold tracking-wide ring-1 shadow-lg ${tierBadgeClass}`}
                     >
                         {tierLabel}
                     </span>
@@ -60,7 +60,7 @@ const BotLogo = ({
     }
 
     return (
-        <div className="relative h-[50px] w-[120px] shrink-0">
+        <div className="relative h-[50px] w-[120px] shrink-0 overflow-hidden rounded-md">
             <img
                 src={src}
                 alt={`${name} logo`}
@@ -68,7 +68,9 @@ const BotLogo = ({
                 onError={() => setLogoExtIndex((prev) => prev + 1)}
             />
             {tierLabel && (
-                <span className={`absolute right-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${tierBadgeClass}`}>
+                <span
+                    className={`absolute left-0 top-2 z-20 -translate-x-3 rotate-[-45deg] rounded-sm px-5 py-0.5 text-[10px] font-extrabold tracking-wide ring-1 shadow-lg ${tierBadgeClass}`}
+                >
                     {tierLabel}
                 </span>
             )}

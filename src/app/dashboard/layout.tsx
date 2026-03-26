@@ -3,6 +3,7 @@
 import { signOut, useSession } from 'next-auth/react';
 import { useState } from 'react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import ChangePasswordDialog from '@/app/components/ChangePasswordDialog';
 
 export default function DashboardLayout({
@@ -13,6 +14,17 @@ export default function DashboardLayout({
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
     const { data: session } = useSession();
+    const pathname = usePathname();
+    const dashboardActive =
+        pathname === '/dashboard' || (pathname?.startsWith('/dashboard/instance') ?? false);
+    const ourBotsActive = pathname?.startsWith('/dashboard/our-bots') ?? false;
+
+    const navLinkClass = (active: boolean) =>
+        `inline-flex items-center border-b-2 px-1 pt-1 text-sm font-medium ${
+            active
+                ? 'border-blue-500 text-gray-900 dark:text-gray-100'
+                : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 dark:text-gray-400 dark:hover:border-gray-600 dark:hover:text-gray-200'
+        }`;
 
     // render modal component at root of layout
     
@@ -32,11 +44,11 @@ export default function DashboardLayout({
 
                                 {/* Desktop Left Links */}
                                 <div className="hidden sm:ml-10 sm:flex sm:items-center sm:space-x-8">
-                                    <Link
-                                        href="/dashboard"
-                                        className="inline-flex items-center border-b-2 border-blue-500 px-1 pt-1 text-sm font-medium text-gray-900 dark:text-gray-100"
-                                    >
+                                    <Link href="/dashboard" className={navLinkClass(dashboardActive)}>
                                         Dashboard
+                                    </Link>
+                                    <Link href="/dashboard/our-bots" className={navLinkClass(ourBotsActive)}>
+                                        Our Bots
                                     </Link>
                                 </div>
                             </div>
@@ -90,9 +102,24 @@ export default function DashboardLayout({
                             <Link
                                 href="/dashboard"
                                 onClick={() => setIsMenuOpen(false)}
-                                className="block border-l-4 border-blue-500 bg-blue-50 py-2 pl-3 pr-4 text-base font-medium text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                                className={`block border-l-4 py-2 pl-3 pr-4 text-base font-medium ${
+                                    dashboardActive
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800'
+                                }`}
                             >
                                 Dashboard
+                            </Link>
+                            <Link
+                                href="/dashboard/our-bots"
+                                onClick={() => setIsMenuOpen(false)}
+                                className={`block border-l-4 py-2 pl-3 pr-4 text-base font-medium ${
+                                    ourBotsActive
+                                        ? 'border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400'
+                                        : 'border-transparent text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800'
+                                }`}
+                            >
+                                Our Bots
                             </Link>
                             {session?.user && (session.user as any).role === 'admin' && (
                                 <Link

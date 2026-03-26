@@ -8,12 +8,14 @@ interface CreateBotDialogProps {
     onClose: () => void;
     onSuccess: () => void;
     initialData?: IBotInstance | null;
+    /** When creating, skip template selection and open configure step with this template */
+    preselectedBotId?: string | null;
 }
 
 const STEP_SELECT_TEMPLATE = 1;
 const STEP_CONFIGURE_INSTANCE = 2;
 
-export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialData }: CreateBotDialogProps) {
+export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialData, preselectedBotId }: CreateBotDialogProps) {
     const [step, setStep] = useState(STEP_SELECT_TEMPLATE);
     const [loading, setLoading] = useState(false);
     const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -61,6 +63,25 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         ...initialData.config,
                     },
                 });
+            } else if (preselectedBotId) {
+                setStep(STEP_CONFIGURE_INSTANCE);
+                setFormData({
+                    botId: preselectedBotId,
+                    name: '',
+                    lastBalance: 0,
+                    config: {
+                        username: '',
+                        password: '',
+                        locale: 'COMMON',
+                        licenseKey: '',
+                        stake: '',
+                        proxyType: '',
+                        proxyHost: '',
+                        proxyPort: '',
+                        proxyUsername: '',
+                        proxyPassword: '',
+                    },
+                });
             } else {
                 setStep(STEP_SELECT_TEMPLATE);
                 setFormData({
@@ -82,7 +103,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 });
             }
         }
-    }, [isOpen, initialData]);
+    }, [isOpen, initialData, preselectedBotId]);
 
     const fetchTemplates = async () => {
         setTemplatesLoading(true);
@@ -323,6 +344,29 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         >
                             Next: Configure instance
                         </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Preselected template: wait for template list before showing configure form
+    if (isCreateFlow && step === STEP_CONFIGURE_INSTANCE && templatesLoading && formData.botId) {
+        return (
+            <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+                onClick={(e) => e.target === e.currentTarget && onClose()}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="dialog-loading-templates"
+            >
+                <div className="w-full max-w-sm rounded-xl bg-white p-8 shadow-2xl dark:bg-gray-800">
+                    <h2 id="dialog-loading-templates" className="sr-only">
+                        Loading bot template
+                    </h2>
+                    <div className="flex flex-col items-center text-gray-500 dark:text-gray-400">
+                        <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-gray-600 dark:border-t-blue-400" />
+                        <p className="mt-3 text-sm">Loading bot template…</p>
                     </div>
                 </div>
             </div>

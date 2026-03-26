@@ -24,7 +24,18 @@ export default function LoginPage() {
         if (result?.error) {
             setError(result.error);
         } else {
-            router.push('/dashboard');
+            try {
+                const res = await fetch('/api/bot-instances');
+                if (res.ok) {
+                    const instances = await res.json();
+                    const hasInstances = Array.isArray(instances) && instances.length > 0;
+                    router.push(hasInstances ? '/dashboard' : '/dashboard/our-bots');
+                } else {
+                    router.push('/dashboard');
+                }
+            } catch {
+                router.push('/dashboard');
+            }
         }
     };
 

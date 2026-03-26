@@ -4,6 +4,77 @@ import { useEffect, useState } from 'react';
 import type { ConfigParamDataType, IConfigParam } from '@/types';
 
 const DATA_TYPES: ConfigParamDataType[] = ['String', 'Number', 'Union', 'Boolean'];
+const BOT_LOGO_EXTENSIONS = ['jpg', 'svg', 'png', 'webp'] as const;
+
+const getBotLogoFileName = (type: string, subtype: number) => {
+    const normalizedType = type
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${normalizedType}-${subtype}.png`;
+};
+
+const BotLogo = ({
+    name,
+    type,
+    subtype,
+    tier,
+}: {
+    name: string;
+    type: string;
+    subtype: number;
+    tier?: string;
+}) => {
+    const [logoExtIndex, setLogoExtIndex] = useState(0);
+    const fileName = getBotLogoFileName(type, subtype);
+    const baseFileName = fileName.replace(/\.(png|jpg|jpeg|svg|webp)$/i, '');
+    const currentExt = BOT_LOGO_EXTENSIONS[logoExtIndex];
+    const src = `/bot-logos/${baseFileName}.${currentExt}`;
+    const hasError = logoExtIndex >= BOT_LOGO_EXTENSIONS.length;
+    const tierLabel = tier === 'free' ? 'Free' : tier === 'paid' ? 'Paid' : null;
+    const tierBadgeClass =
+        tier === 'free'
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+
+    useEffect(() => {
+        setLogoExtIndex(0);
+    }, [type, subtype]);
+
+    if (hasError) {
+        return (
+            <div className="relative h-[50px] w-[120px] shrink-0">
+                <div className="flex h-full w-full items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-semibold">BOT</span>
+                </div>
+                {tierLabel && (
+                    <span
+                        className={`absolute right-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${tierBadgeClass}`}
+                    >
+                        {tierLabel}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative h-[50px] w-[120px] shrink-0">
+            <img
+                src={src}
+                alt={`${name} logo`}
+                className="h-full w-full rounded-md object-contain"
+                onError={() => setLogoExtIndex((prev) => prev + 1)}
+            />
+            {tierLabel && (
+                <span className={`absolute right-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${tierBadgeClass}`}>
+                    {tierLabel}
+                </span>
+            )}
+        </div>
+    );
+};
 
 const emptyParam = (): IConfigParam => ({
     paramName: '',
@@ -348,56 +419,81 @@ export default function AdminBotsPage() {
 
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {bots.map((bot) => (
-                    <div key={bot._id} className="rounded-lg bg-white p-6 shadow dark:bg-gray-800">
-                        <div className="flex items-start justify-between gap-4">
-                            <div>
-                                <h3 className="font-bold text-gray-900 dark:text-white">{bot.name}</h3>
-                                {bot.isDefault && (
-                                    <div className="mt-1 inline-flex items-center rounded bg-blue-50 px-2 py-0.5 text-xs text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
-                                        Default
+                    <article
+                        key={bot._id}
+                        className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm transition hover:shadow-md dark:border-gray-700 dark:bg-gray-800"
+                    >
+                        {(() => {
+                            const params = Array.isArray(bot.configParams) ? bot.configParams : [];
+                            const tier = (bot as { botTier?: string }).botTier;
+                            return (
+                                <>
+                                    <div className="flex flex-1 flex-col p-6">
+                                        <div className="flex flex-wrap items-start justify-between gap-2">
+                                            <div className="flex items-center gap-2">
+                                                <BotLogo
+                                                    name={bot.name}
+                                                    type={bot.type}
+                                                    subtype={typeof bot.subtype === 'number' ? bot.subtype : 0}
+                                                    tier={tier}
+                                                />
+                                                <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                    {bot.name}
+                                                </h2>
+                                            </div>
+                                        </div>
+
+                                        {bot.description ? (
+                                            <p className="mt-2 line-clamp-3 text-sm text-gray-600 dark:text-gray-400">
+                                                {bot.description}
+                                            </p>
+                                        ) : (
+                                            <p className="mt-2 text-sm italic text-gray-400">No description</p>
+                                        )}
+
+                                        <div className="mt-4 flex flex-wrap gap-2">
+                                            <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                                                {bot.type}
+                                            </span>
+                                            {bot.version && (
+                                                <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-600 dark:text-gray-400">
+                                                    v{bot.version}
+                                                </span>
+                                            )}
+                                        </div>
+
+                                        {params.length > 0 && (
+                                            <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
+                                                <span className="font-medium text-gray-600 dark:text-gray-300">
+                                                    Parameters:
+                                                </span>{' '}
+                                                {params.map((p: any) => p.paramName).join(', ')}
+                                            </p>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                            <div className="text-right">
-                                <div className="text-xs font-mono text-gray-500">{bot.version}</div>
-                                <div className="mt-2 flex gap-2">
-                                    <button
-                                        onClick={() => openEdit(bot)}
-                                        className="rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300"
-                                    >
-                                        Edit
-                                    </button>
-                                    <button
-                                        onClick={() => handleDelete(bot)}
-                                        className="rounded-md border border-red-300 px-3 py-1 text-sm text-red-600 hover:bg-red-50 dark:border-red-600 dark:text-red-400"
-                                    >
-                                        Delete
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-                        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{bot.description || '—'}</p>
-                        <div className="mt-4 flex flex-wrap items-center gap-2">
-                            <span className="rounded bg-gray-100 px-2 py-1 text-xs dark:bg-gray-700">{bot.type}</span>
-                            <span className="rounded bg-gray-100 px-2 py-1 text-xs dark:bg-gray-700">subtype: {bot.subtype}</span>
-                            <span className="text-xs text-gray-400">ID: {bot._id.slice(-6)}</span>
-                        </div>
-                        {Array.isArray(bot.configParams) && bot.configParams.length > 0 && (
-                            <div className="mt-3 border-t border-gray-200 pt-3 dark:border-gray-600">
-                                <div className="text-xs font-medium text-gray-500 dark:text-gray-400">Config parameters</div>
-                                <ul className="mt-1 space-y-0.5 text-xs text-gray-600 dark:text-gray-300">
-                                    {bot.configParams.map((p: any, i: number) => (
-                                        <li key={i}>
-                                            {p.paramName}: {p.dataType}
-                                            {p.dataType === 'Union' && p.unionValues?.length
-                                                ? ` (${p.unionValues.join(', ')})`
-                                                : ''}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-                        )}
-                    </div>
+
+                                    <div className="border-t border-gray-100 bg-gray-50/80 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/40">
+                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                            <button
+                                                type="button"
+                                                onClick={() => openEdit(bot)}
+                                                className="w-full rounded-md border border-gray-300 px-4 py-2.5 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-200 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-300 dark:focus:ring-offset-gray-900 sm:flex-1"
+                                            >
+                                                Edit
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleDelete(bot)}
+                                                className="w-full rounded-md border border-red-300 px-4 py-2.5 text-sm font-medium text-red-600 shadow-sm hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-200 focus:ring-offset-2 dark:border-red-600 dark:text-red-400 dark:focus:ring-offset-gray-900 sm:flex-1"
+                                            >
+                                                Delete
+                                            </button>
+                                        </div>
+                                    </div>
+                                </>
+                            );
+                        })()}
+                    </article>
                 ))}
             </div>
         </div>

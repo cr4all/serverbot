@@ -7,6 +7,81 @@ import Link from 'next/link';
 import { IBot } from '@/types';
 import CreateBotDialog from '../CreateBotDialog';
 
+const getBotLogoFileName = (type: string, subtype: number) => {
+    const normalizedType = type
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    return `${normalizedType}-${subtype}.png`;
+};
+
+const BOT_LOGO_EXTENSIONS = ['jpg', 'svg', 'png', 'webp'] as const;
+
+const BotLogo = ({
+    name,
+    type,
+    subtype,
+    tier,
+}: {
+    name: string;
+    type: string;
+    subtype: number;
+    tier?: string;
+}) => {
+    const [logoExtIndex, setLogoExtIndex] = useState(0);
+    const fileName = getBotLogoFileName(type, subtype);
+    const baseFileName = fileName.replace(/\.(png|jpg|jpeg|svg|webp)$/i, '');
+    const currentExt = BOT_LOGO_EXTENSIONS[logoExtIndex];
+    const src = `/bot-logos/${baseFileName}.${currentExt}`;
+    const hasError = logoExtIndex >= BOT_LOGO_EXTENSIONS.length;
+
+    useEffect(() => {
+        setLogoExtIndex(0);
+    }, [type, subtype]);
+
+    const tierLabel = tier === 'free' ? 'Free' : tier === 'paid' ? 'Paid' : null;
+    const tierBadgeClass =
+        tier === 'free'
+            ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+            : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200';
+
+    if (hasError) {
+        return (
+            <div className="relative h-[50px] w-[120px] shrink-0">
+                <div className="flex h-full w-full items-center justify-center rounded-md bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-300">
+                    <span className="text-xs font-semibold">BOT</span>
+                </div>
+                {tierLabel && (
+                    <span
+                        className={`absolute right-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${tierBadgeClass}`}
+                    >
+                        {tierLabel}
+                    </span>
+                )}
+            </div>
+        );
+    }
+
+    return (
+        <div className="relative h-[50px] w-[120px] shrink-0">
+            <img
+                src={src}
+                alt={`${name} logo`}
+                className="h-full w-full rounded-md object-contain"
+                onError={() => setLogoExtIndex((prev) => prev + 1)}
+            />
+            {tierLabel && (
+                <span
+                    className={`absolute right-1 top-1 rounded-full px-2 py-0.5 text-[10px] font-medium ${tierBadgeClass}`}
+                >
+                    {tierLabel}
+                </span>
+            )}
+        </div>
+    );
+};
+
 export default function OurBotsPage() {
     const { data: session, status } = useSession();
     const router = useRouter();
@@ -69,7 +144,7 @@ export default function OurBotsPage() {
                     href="/dashboard"
                     className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400"
                 >
-                    ← Back to instances
+                    ← Go to instances
                 </Link>
             </div>
 
@@ -99,18 +174,17 @@ export default function OurBotsPage() {
                             >
                                 <div className="flex flex-1 flex-col p-6">
                                     <div className="flex flex-wrap items-start justify-between gap-2">
-                                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t.name}</h2>
-                                        {tier && (
-                                            <span
-                                                className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
-                                                    tier === 'free'
-                                                        ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
-                                                        : 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-200'
-                                                }`}
-                                            >
-                                                {tier === 'free' ? 'Free' : 'Paid'}
-                                            </span>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <BotLogo
+                                                name={t.name}
+                                                type={t.type}
+                                                subtype={t.subtype ?? 0}
+                                                tier={tier}
+                                            />
+                                            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+                                                {t.name}
+                                            </h2>
+                                        </div>
                                     </div>
                                     {t.description ? (
                                         <p className="mt-2 line-clamp-3 text-sm text-gray-600 dark:text-gray-400">

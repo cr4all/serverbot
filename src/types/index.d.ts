@@ -34,6 +34,8 @@ export interface IBot {
     configParams?: IConfigParam[];
     version: string;
     isDefault?: boolean;
+    /** 무료 템플릿은 라이선스 없이 동작 */
+    botTier?: 'free' | 'paid';
     createdAt: Date;
     updatedAt: Date;
 }

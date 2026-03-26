@@ -67,6 +67,14 @@ export async function PATCH(
             updateQuery.userId = (session.user as any).id;
         }
 
+        if (body?.config && typeof body.config === 'object') {
+            const existingForTier = await BotInstance.findOne(updateQuery).populate('botId');
+            const tier = (existingForTier?.botId as { botTier?: string } | null)?.botTier;
+            if (tier === 'free') {
+                delete body.config.licenseKey;
+            }
+        }
+
         const instance = await BotInstance.findOneAndUpdate(
             updateQuery,
             { $set: body },

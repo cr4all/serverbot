@@ -66,6 +66,13 @@ export async function POST(request: Request) {
             }
         }
 
+        if (body.botId && body.config && typeof body.config === 'object') {
+            const bot = await Bot.findById(body.botId).select('botTier').lean();
+            if ((bot as { botTier?: string } | null)?.botTier === 'free') {
+                delete body.config.licenseKey;
+            }
+        }
+
         // Force userId from session
         const instanceData = { ...body, userId: userId, lastBalance: 0 };
 

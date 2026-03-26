@@ -285,7 +285,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         <span className={`inline-flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} title={isConnected ? 'Connected' : 'Simulating/Connecting'} />
                     </div>
                 </div>
-                <div className="h-64 overflow-y-auto rounded bg-gray-900 p-4 font-mono text-xs text-gray-300 sm:h-80">
+                <div className="h-64 overflow-y-auto rounded bg-gray-50 p-4 font-mono text-xs text-gray-700 sm:h-80 dark:bg-gray-900 dark:text-gray-300">
                     {logs.map((log, i) => (
                         <div key={i} className="mb-1">
                             <span className="text-gray-500">[{log.timestamp}]</span>{' '}

@@ -56,7 +56,7 @@ export default function DashboardLayout({
                             <div className="flex items-center gap-4">
                                 {/* Desktop Right Links */}
                                 <div className="hidden sm:flex sm:items-center">
-                                    <button onClick={() => setIsChangePasswordOpen(true)} className="inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 mr-4">
+                                    <button onClick={() => setIsChangePasswordOpen(true)} className="mr-4 inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white">
                                         Change Password
                                     </button>
                                     <button

@@ -59,7 +59,6 @@ export async function POST(request: Request) {
             configParams,
             version: body.version ?? '1.0.0',
             isDefault: !!body.isDefault,
-            requiresCredentials: body.requiresCredentials !== false,
         };
         const bot = await Bot.create(createPayload);
         if (configParams.length > 0 && mongoose.connection?.db) {

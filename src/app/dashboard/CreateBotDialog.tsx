@@ -165,10 +165,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config[p.paramName] = raw === true || raw === 'true';
                 }
             }
-            if (selectedTemplate?.requiresCredentials === false) {
-                delete config.username;
-                delete config.password;
-            }
 
             const body: any = {
                 name: formData.name,
@@ -494,33 +490,31 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                 </select>
                             </div>
 
-                            {selectedTemplate?.requiresCredentials !== false && (
-                                <>
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>
-                                        <input
-                                            type="text"
-                                            name="username"
-                                            required
-                                            value={formData.config.username}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                    </div>
+                            <>
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>
+                                    <input
+                                        type="text"
+                                        name="username"
+                                        required
+                                        value={formData.config.username}
+                                        onChange={handleChange}
+                                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    />
+                                </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Password</label>
-                                        <input
-                                            type="password"
-                                            name="password"
-                                            required
-                                            value={formData.config.password}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                    </div>
-                                </>
-                            )}
+                                <div>
+                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Password</label>
+                                    <input
+                                        type="password"
+                                        name="password"
+                                        required
+                                        value={formData.config.password}
+                                        onChange={handleChange}
+                                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    />
+                                </div>
+                            </>
 
                             <div className="sm:col-span-2">
                                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Amount</label>

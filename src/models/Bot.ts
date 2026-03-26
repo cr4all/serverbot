@@ -54,9 +54,19 @@ const BotSchema = new mongoose.Schema(
             type: Boolean,
             default: false,
         },
-        requiresCredentials: {
-            type: Boolean,
-            default: true,
+        processType: {
+            type: String,
+            enum: ['inline', 'standalone'],
+            default: 'inline',
+        },
+        /** 무료봇은 라이선스 없이 동작, 유료봇은 라이선스 필요 */
+        botTier: {
+            type: String,
+            enum: ['free', 'paid'],
+            default: 'paid',
+        },
+        workerPath: {
+            type: String,
         },
     },
     { timestamps: true }

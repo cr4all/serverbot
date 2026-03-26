@@ -34,7 +34,6 @@ export interface IBot {
     configParams?: IConfigParam[];
     version: string;
     isDefault?: boolean;
-    requiresCredentials?: boolean;
     createdAt: Date;
     updatedAt: Date;
 }

@@ -190,6 +190,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             const config: Record<string, unknown> = { ...formData.config };
             if (resolveBotTier(templates, formData.botId, initialData) === 'free') {
                 delete config.licenseKey;
+                delete config.proxyType;
+                delete config.proxyHost;
+                delete config.proxyPort;
+                delete config.proxyUsername;
+                delete config.proxyPassword;
             }
             // Ensure stake is sent as number (integer or float)
             const rawStake = config.stake;
@@ -439,7 +444,16 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             <div className="rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-600 dark:bg-gray-700/50">
                                 <div className="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">Template config parameters</div>
                                 <div className="space-y-3">
-                                    {(isFreeTier ? params.filter((p: { paramName: string }) => p.paramName !== 'licenseKey') : params).map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => {
+                                    {(isFreeTier
+                                        ? params.filter(
+                                              (p: { paramName: string }) =>
+                                                  p.paramName !== 'licenseKey' &&
+                                                  !['proxyType', 'proxyHost', 'proxyPort', 'proxyUsername', 'proxyPassword'].includes(
+                                                      p.paramName
+                                                  )
+                                          )
+                                        : params
+                                    ).map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => {
                                         const name = p.paramName;
                                         const val = (formData.config as Record<string, unknown>)[name];
                                         if (p.dataType === 'Boolean') {
@@ -597,77 +611,79 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                 />
                             </div>
 
-                            <div className="sm:col-span-2 border-t border-gray-100 pt-4 dark:border-gray-700">
-                                <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Proxy</h4>
+                            {!isFreeTier && (
+                                <div className="sm:col-span-2 border-t border-gray-100 pt-4 dark:border-gray-700">
+                                    <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Proxy</h4>
 
-                                <p className="mb-3 text-sm text-red-600 dark:text-red-400">
-                                    Configure this only if you have your own proxy.
-                                </p>
+                                    <p className="mb-3 text-sm text-red-600 dark:text-red-400">
+                                        Configure this only if you have your own proxy.
+                                    </p>
 
-                                <div className="grid gap-3 sm:grid-cols-2">
-                                    <div className="sm:col-span-2">
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Type</label>
-                                        <select
-                                            name="proxyType"
-                                            value={formData.config.proxyType}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        >
-                                            <option value="">None</option>
-                                            <option value="HTTP">HTTP</option>
-                                            <option value="SOCKS5">SOCKS5</option>
-                                        </select>
-                                    </div>
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        <div className="sm:col-span-2">
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Type</label>
+                                            <select
+                                                name="proxyType"
+                                                value={formData.config.proxyType}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            >
+                                                <option value="">None</option>
+                                                <option value="HTTP">HTTP</option>
+                                                <option value="SOCKS5">SOCKS5</option>
+                                            </select>
+                                        </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Host/IP</label>
-                                        <input
-                                            type="text"
-                                            name="proxyHost"
-                                            placeholder="proxy.example.com or 1.2.3.4"
-                                            value={formData.config.proxyHost}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                    </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Host/IP</label>
+                                            <input
+                                                type="text"
+                                                name="proxyHost"
+                                                placeholder="proxy.example.com or 1.2.3.4"
+                                                value={formData.config.proxyHost}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            />
+                                        </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Port</label>
-                                        <input
-                                            type="number"
-                                            name="proxyPort"
-                                            placeholder="8080"
-                                            value={formData.config.proxyPort}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                    </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Port</label>
+                                            <input
+                                                type="number"
+                                                name="proxyPort"
+                                                placeholder="8080"
+                                                value={formData.config.proxyPort}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            />
+                                        </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Username</label>
-                                        <input
-                                            type="text"
-                                            name="proxyUsername"
-                                            placeholder="optional"
-                                            value={formData.config.proxyUsername}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
-                                    </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Username</label>
+                                            <input
+                                                type="text"
+                                                name="proxyUsername"
+                                                placeholder="optional"
+                                                value={formData.config.proxyUsername}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            />
+                                        </div>
 
-                                    <div>
-                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Password</label>
-                                        <input
-                                            type="password"
-                                            name="proxyPassword"
-                                            placeholder="optional"
-                                            value={formData.config.proxyPassword}
-                                            onChange={handleChange}
-                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                        />
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Proxy Password</label>
+                                            <input
+                                                type="password"
+                                                name="proxyPassword"
+                                                placeholder="optional"
+                                                value={formData.config.proxyPassword}
+                                                onChange={handleChange}
+                                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
+                            )}
                         </div>
                     </div>
                         </div>

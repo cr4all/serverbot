@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { IBot } from '@/types';
 import CreateBotDialog from '../CreateBotDialog';
+import MessageDialog from '@/components/MessageDialog';
 
 const getBotLogoFileName = (type: string, subtype: number) => {
     const normalizedType = type
@@ -35,10 +36,6 @@ const BotLogo = ({
     const currentExt = BOT_LOGO_EXTENSIONS[logoExtIndex];
     const src = `/bot-logos/${baseFileName}.${currentExt}`;
     const hasError = logoExtIndex >= BOT_LOGO_EXTENSIONS.length;
-
-    useEffect(() => {
-        setLogoExtIndex(0);
-    }, [type, subtype]);
 
     const tierLabel = tier === 'free' ? 'Free' : tier === 'paid' ? 'Paid' : null;
     const tierBadgeClass =
@@ -89,6 +86,12 @@ export default function OurBotsPage() {
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
     const [preselectedBotId, setPreselectedBotId] = useState<string | null>(null);
+    const [messageDialog, setMessageDialog] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'warning' | 'danger' | 'success';
+    }>({ open: false, title: '', message: '', variant: 'info' });
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -133,6 +136,13 @@ export default function OurBotsPage() {
 
     return (
         <div>
+            <MessageDialog
+                open={messageDialog.open}
+                title={messageDialog.title}
+                message={messageDialog.message}
+                variant={messageDialog.variant}
+                onClose={() => setMessageDialog({ open: false, title: '', message: '', variant: 'info' })}
+            />
             <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Our Bots</h1>
@@ -167,6 +177,8 @@ export default function OurBotsPage() {
                     {templates.map((t) => {
                         const params = t.configParams ?? [];
                         const tier = (t as { botTier?: string }).botTier;
+                        const isMaintenance =
+                            (t as { templateStatus?: 'AVAILABLE' | 'MAINTENANCE' }).templateStatus === 'MAINTENANCE';
                         return (
                             <article
                                 key={String(t._id)}
@@ -202,6 +214,15 @@ export default function OurBotsPage() {
                                                 v{t.version}
                                             </span>
                                         )}
+                                        <span
+                                            className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                                isMaintenance
+                                                    ? 'bg-red-200/80 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                                    : 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                            }`}
+                                        >
+                                            {isMaintenance ? 'Maintenance' : 'Available'}
+                                        </span>
                                     </div>
                                     {params.length > 0 && (
                                         <p className="mt-3 text-xs text-gray-500 dark:text-gray-400">
@@ -213,8 +234,20 @@ export default function OurBotsPage() {
                                 <div className="border-t border-gray-100 bg-gray-50/80 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/40">
                                     <button
                                         type="button"
-                                        onClick={() => openCreateForTemplate(String(t._id))}
-                                        className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                                        onClick={() => {
+                                            if (isMaintenance) {
+                                                setMessageDialog({
+                                                    open: true,
+                                                    title: 'Template unavailable',
+                                                    message: 'This bot template is currently under maintenance.',
+                                                    variant: 'warning',
+                                                });
+                                                return;
+                                            }
+                                            openCreateForTemplate(String(t._id));
+                                        }}
+                                        disabled={isMaintenance}
+                                        className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
                                     >
                                         Create instance
                                     </button>

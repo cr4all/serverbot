@@ -66,6 +66,18 @@ export async function POST(request: Request) {
             }
         }
 
+        if (body.botId) {
+            const t = await Bot.findById(body.botId)
+                .select('templateStatus name')
+                .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
+            if (t?.templateStatus === 'MAINTENANCE') {
+                return NextResponse.json(
+                    { error: 'This bot template is under maintenance and cannot be created right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
+                    { status: 423 }
+                );
+            }
+        }
+
         if (body.botId && body.config && typeof body.config === 'object') {
             const bot = await Bot.findById(body.botId).select('botTier').lean();
             if ((bot as { botTier?: string } | null)?.botTier === 'free') {

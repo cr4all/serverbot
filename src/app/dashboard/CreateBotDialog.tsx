@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { IBotInstance } from '@/types';
+import MessageDialog from '@/components/MessageDialog';
 
 interface CreateBotDialogProps {
     isOpen: boolean;
@@ -37,6 +38,12 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const [loading, setLoading] = useState(false);
     const [templatesLoading, setTemplatesLoading] = useState(false);
     const [templates, setTemplates] = useState<any[]>([]);
+    const [messageDialog, setMessageDialog] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'warning' | 'danger' | 'success';
+    }>({ open: false, title: '', message: '', variant: 'info' });
     const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
     const [formData, setFormData] = useState({
         botId: '',
@@ -156,7 +163,12 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
         // Validate locale is allowed
         if (!allowedLocales.includes(formData.config.locale)) {
-            alert(`Locale must be one of: ${allowedLocales.join(', ')}`);
+            setMessageDialog({
+                open: true,
+                title: 'Invalid locale',
+                message: `Locale must be one of: ${allowedLocales.join(', ')}`,
+                variant: 'warning',
+            });
             setLoading(false);
             return;
         }
@@ -232,11 +244,22 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 onSuccess();
                 onClose();
             } else {
-                alert(`Failed to ${initialData ? 'update' : 'create'} bot instance`);
+                const err = await res.json().catch(() => ({}));
+                setMessageDialog({
+                    open: true,
+                    title: initialData ? 'Update failed' : 'Create failed',
+                    message: err?.error || `Failed to ${initialData ? 'update' : 'create'} bot instance.`,
+                    variant: err?.code === 'BOT_TEMPLATE_MAINTENANCE' ? 'warning' : 'danger',
+                });
             }
         } catch (e) {
             console.error(e);
-            alert('Error creating/updating bot');
+            setMessageDialog({
+                open: true,
+                title: 'Request failed',
+                message: 'Error creating/updating bot. Please try again.',
+                variant: 'danger',
+            });
         } finally {
             setLoading(false);
         }
@@ -287,6 +310,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 aria-modal="true"
                 aria-labelledby="dialog-title-step1"
             >
+                <MessageDialog
+                    open={messageDialog.open}
+                    title={messageDialog.title}
+                    message={messageDialog.message}
+                    variant={messageDialog.variant}
+                    onClose={() => setMessageDialog({ open: false, title: '', message: '', variant: 'info' })}
+                />
                 <div className="w-full max-w-lg rounded-xl bg-white shadow-2xl dark:bg-gray-800 max-h-[90vh] flex flex-col">
                     <div className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
                         <h2 id="dialog-title-step1" className="text-lg font-bold text-gray-900 dark:text-white">
@@ -312,16 +342,30 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                 {templates.map((t) => {
                                     const isSelected = String(formData.botId) === String(t._id);
                                     const params = t.configParams ?? [];
+                                    const isMaintenance =
+                                        (t as { templateStatus?: 'AVAILABLE' | 'MAINTENANCE' }).templateStatus === 'MAINTENANCE';
                                     return (
                                         <button
                                             key={t._id}
                                             type="button"
-                                            onClick={() => setFormData((prev) => ({ ...prev, botId: t._id }))}
+                                            onClick={() => {
+                                                if (isMaintenance) {
+                                                    setMessageDialog({
+                                                        open: true,
+                                                        title: 'Template unavailable',
+                                                        message: 'This bot template is currently under maintenance.',
+                                                        variant: 'warning',
+                                                    });
+                                                    return;
+                                                }
+                                                setFormData((prev) => ({ ...prev, botId: t._id }));
+                                            }}
+                                            disabled={isMaintenance}
                                             className={`relative w-full rounded-xl border-2 p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                                                 isSelected
                                                     ? 'border-blue-500 bg-blue-50/80 dark:border-blue-400 dark:bg-blue-900/25'
                                                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 dark:border-gray-600 dark:bg-gray-700/50 dark:hover:border-gray-500 dark:hover:bg-gray-700'
-                                            }`}
+                                            } ${isMaintenance ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             aria-pressed={isSelected}
                                         >
                                             {isSelected && (
@@ -342,6 +386,15 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                         v{t.version}
                                                     </span>
                                                 )}
+                                                <span
+                                                    className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                                        isMaintenance
+                                                            ? 'bg-red-200/80 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                                            : 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                    }`}
+                                                >
+                                                    {isMaintenance ? 'Maintenance' : 'Available'}
+                                                </span>
                                             </div>
                                             {params.length > 0 && (
                                                 <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
@@ -408,6 +461,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             aria-modal="true"
             aria-labelledby="dialog-title-step2"
         >
+            <MessageDialog
+                open={messageDialog.open}
+                title={messageDialog.title}
+                message={messageDialog.message}
+                variant={messageDialog.variant}
+                onClose={() => setMessageDialog({ open: false, title: '', message: '', variant: 'info' })}
+            />
             <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-xl bg-white shadow-2xl dark:bg-gray-800">
                 <div className="shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
                     <h2 id="dialog-title-step2" className="text-lg font-bold text-gray-900 dark:text-white">

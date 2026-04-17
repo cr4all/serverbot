@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import type { ConfigParamDataType, IConfigParam } from '@/types';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import MessageDialog from '@/components/MessageDialog';
 
 const DATA_TYPES: ConfigParamDataType[] = ['String', 'Number', 'Union', 'Boolean'];
 const BOT_LOGO_EXTENSIONS = ['jpg', 'svg', 'png', 'webp'] as const;
@@ -37,10 +39,6 @@ const BotLogo = ({
         tier === 'free'
             ? 'bg-emerald-600 text-white ring-emerald-200 shadow-emerald-950/45 dark:bg-emerald-500 dark:text-emerald-950 dark:ring-emerald-100'
             : 'bg-amber-500 text-amber-950 ring-amber-100 shadow-amber-950/45 dark:bg-amber-400 dark:text-amber-950 dark:ring-amber-50';
-
-    useEffect(() => {
-        setLogoExtIndex(0);
-    }, [type, subtype]);
 
     if (hasError) {
         return (
@@ -88,6 +86,24 @@ export default function AdminBotsPage() {
     const [loading, setLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [editingBotId, setEditingBotId] = useState<string | null>(null);
+    const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        botId: string;
+        title: string;
+        message: string;
+    }>({ open: false, botId: '', title: '', message: '' });
+    const [maintenanceConfirm, setMaintenanceConfirm] = useState<{
+        open: boolean;
+        botId: string;
+        name: string;
+    }>({ open: false, botId: '', name: '' });
+    const [messageDialog, setMessageDialog] = useState<{
+        open: boolean;
+        title: string;
+        message: string;
+        variant?: 'info' | 'warning' | 'danger' | 'success';
+    }>({ open: false, title: '', message: '', variant: 'info' });
     const [formData, setFormData] = useState({
         name: '',
         type: '',
@@ -264,10 +280,145 @@ export default function AdminBotsPage() {
         }
     };
 
+    const setTemplateStatus = async (
+        bot: any,
+        next: 'AVAILABLE' | 'MAINTENANCE',
+        opts?: { skipMaintenanceConfirm?: boolean }
+    ) => {
+        if (statusUpdatingId) return;
+        if (next === 'MAINTENANCE') {
+            if (opts?.skipMaintenanceConfirm) {
+            } else {
+            setMaintenanceConfirm({ open: true, botId: String(bot._id), name: String(bot.name || '') });
+            return;
+            }
+        }
+        setStatusUpdatingId(String(bot._id));
+        try {
+            const res = await fetch(`/api/bots/${bot._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ templateStatus: next }),
+            });
+            if (res.ok) {
+                const data = await res.json().catch(() => ({}));
+                await fetchBots();
+                if (next === 'AVAILABLE') {
+                    const ids = (data?.maintenanceSnapshot?.instanceIds ?? []).map((x: any) => String(x)).filter(Boolean);
+                    if (ids.length > 0) {
+                        setConfirmDialog({
+                            open: true,
+                            botId: String(bot._id),
+                            title: 'Restart previous instances?',
+                            message:
+                                'Do you want to restart the instances that were running before maintenance?\n\nThis will send start signals to the bot server.',
+                        });
+                    }
+                }
+            } else {
+                const err = await res.json().catch(() => ({}));
+                setMessageDialog({
+                    open: true,
+                    title: 'Update failed',
+                    message: err?.error || 'Failed to update template status.',
+                    variant: 'danger',
+                });
+            }
+        } catch (e) {
+            console.error(e);
+            setMessageDialog({
+                open: true,
+                title: 'Request failed',
+                message: 'Failed to update template status. Please try again.',
+                variant: 'danger',
+            });
+        } finally {
+            setStatusUpdatingId(null);
+        }
+    };
+
+    const restartSnapshot = async (botId: string, action: 'restart' | 'clear') => {
+        try {
+            const res = await fetch(`/api/bots/${botId}/maintenance-snapshot`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action }),
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                setMessageDialog({
+                    open: true,
+                    title: 'Operation failed',
+                    message: err?.error || 'Failed to process maintenance snapshot.',
+                    variant: 'danger',
+                });
+                return;
+            }
+            const data = await res.json().catch(() => ({}));
+            if (action === 'restart') {
+                setMessageDialog({
+                    open: true,
+                    title: 'Restart started',
+                    message: `Sent start signals.\n\nRequested: ${data?.restartResult?.matched ?? 0}\nStarted: ${data?.restartResult?.started ?? 0}`,
+                    variant: 'success',
+                });
+            }
+            await fetchBots();
+        } catch (e) {
+            console.error(e);
+            setMessageDialog({
+                open: true,
+                title: 'Request failed',
+                message: 'Failed to process maintenance snapshot. Please try again.',
+                variant: 'danger',
+            });
+        }
+    };
+
     if (loading) return <div className="text-center">Loading templates...</div>;
 
     return (
         <div className="space-y-6">
+            <ConfirmDialog
+                open={maintenanceConfirm.open}
+                title="Switch to maintenance?"
+                message={`Switch template "${maintenanceConfirm.name}" to maintenance?\n\n- Users will be blocked from creating/starting.\n- All running instances will be stopped.`}
+                variant="warning"
+                confirmText="Yes, switch"
+                cancelText="Cancel"
+                onCancel={() => setMaintenanceConfirm({ open: false, botId: '', name: '' })}
+                onConfirm={async () => {
+                    const botId = maintenanceConfirm.botId;
+                    setMaintenanceConfirm({ open: false, botId: '', name: '' });
+                    const bot = bots.find((b) => String(b._id) === String(botId));
+                    if (bot) await setTemplateStatus(bot, 'MAINTENANCE', { skipMaintenanceConfirm: true });
+                }}
+            />
+            <ConfirmDialog
+                open={confirmDialog.open}
+                title={confirmDialog.title}
+                message={confirmDialog.message}
+                variant="warning"
+                confirmText="Yes, restart"
+                cancelText="No"
+                onCancel={async () => {
+                    const id = confirmDialog.botId;
+                    setConfirmDialog({ open: false, botId: '', title: '', message: '' });
+                    if (id) await restartSnapshot(id, 'clear');
+                }}
+                onConfirm={async () => {
+                    const id = confirmDialog.botId;
+                    setConfirmDialog({ open: false, botId: '', title: '', message: '' });
+                    if (id) await restartSnapshot(id, 'restart');
+                }}
+            />
+            <MessageDialog
+                open={messageDialog.open}
+                title={messageDialog.title}
+                message={messageDialog.message}
+                variant={messageDialog.variant}
+                onClose={() => setMessageDialog({ open: false, title: '', message: '', variant: 'info' })}
+            />
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bot Templates</h1>
                 <button
@@ -428,6 +579,9 @@ export default function AdminBotsPage() {
                         {(() => {
                             const params = Array.isArray(bot.configParams) ? bot.configParams : [];
                             const tier = (bot as { botTier?: string }).botTier;
+                            const templateStatus = (bot as { templateStatus?: 'AVAILABLE' | 'MAINTENANCE' }).templateStatus ?? 'AVAILABLE';
+                            const isMaintenance = templateStatus === 'MAINTENANCE';
+                            const isUpdatingThis = statusUpdatingId === String(bot._id);
                             return (
                                 <>
                                     <div className="flex flex-1 flex-col p-6">
@@ -462,6 +616,20 @@ export default function AdminBotsPage() {
                                                     v{bot.version}
                                                 </span>
                                             )}
+                                            <span
+                                                className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                                                    isMaintenance
+                                                        ? 'bg-red-200/80 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                                                        : 'bg-emerald-200/80 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300'
+                                                }`}
+                                                title={
+                                                    isMaintenance
+                                                        ? 'Maintenance: blocks create/start + stops running instances'
+                                                        : 'Available'
+                                                }
+                                            >
+                                                {isMaintenance ? 'Maintenance' : 'Available'}
+                                            </span>
                                         </div>
 
                                         {params.length > 0 && (
@@ -475,7 +643,25 @@ export default function AdminBotsPage() {
                                     </div>
 
                                     <div className="border-t border-gray-100 bg-gray-50/80 px-6 py-4 dark:border-gray-700 dark:bg-gray-900/40">
-                                        <div className="flex flex-col gap-2 sm:flex-row">
+                                        <div className="flex flex-col gap-2">
+                                            <div className="flex flex-col gap-2 sm:flex-row">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTemplateStatus(bot, 'AVAILABLE')}
+                                                    disabled={!isMaintenance || isUpdatingThis}
+                                                    className="w-full rounded-md border border-emerald-300 px-4 py-2.5 text-sm font-medium text-emerald-700 shadow-sm hover:bg-emerald-50 disabled:opacity-50 dark:border-emerald-700 dark:text-emerald-300 dark:hover:bg-emerald-900/20 sm:flex-1"
+                                                >
+                                                    {isUpdatingThis && !isMaintenance ? 'Updating…' : 'Available'}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTemplateStatus(bot, 'MAINTENANCE')}
+                                                    disabled={isMaintenance || isUpdatingThis}
+                                                    className="w-full rounded-md border border-red-300 px-4 py-2.5 text-sm font-medium text-red-700 shadow-sm hover:bg-red-50 disabled:opacity-50 dark:border-red-700 dark:text-red-300 dark:hover:bg-red-900/20 sm:flex-1"
+                                                >
+                                                    {isUpdatingThis && isMaintenance ? 'Updating…' : 'Maintenance'}
+                                                </button>
+                                            </div>
                                             <button
                                                 type="button"
                                                 onClick={() => openEdit(bot)}

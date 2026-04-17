@@ -39,7 +39,7 @@ export default function ThemeToggle() {
 
   const nextTheme = useMemo<Theme>(() => (theme === 'dark' ? 'light' : 'dark'), [theme]);
   const label = useMemo(
-    () => (theme === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환'),
+    () => (theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'),
     [theme],
   );
 

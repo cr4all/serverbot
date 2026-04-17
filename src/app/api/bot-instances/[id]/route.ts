@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
+import Bot from '@/models/Bot';
 
 export async function GET(
     request: Request,
@@ -65,6 +66,22 @@ export async function PATCH(
         const updateQuery: any = { _id: id };
         if ((session.user as any).role !== 'admin') {
             updateQuery.userId = (session.user as any).id;
+        }
+
+        if (body?.status && String(body.status).toUpperCase() === 'RUNNING') {
+            const inst = await BotInstance.findOne(updateQuery).select('botId').lean<{ botId?: unknown } | null>();
+            if (!inst?.botId) {
+                return NextResponse.json({ error: 'Bot instance not found or unauthorized' }, { status: 404 });
+            }
+            const t = await Bot.findById(inst.botId)
+                .select('templateStatus name')
+                .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
+            if (t?.templateStatus === 'MAINTENANCE') {
+                return NextResponse.json(
+                    { error: 'This bot template is under maintenance and cannot be started right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
+                    { status: 423 }
+                );
+            }
         }
 
         if (body?.config && typeof body.config === 'object') {

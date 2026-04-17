@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
         }
         if (template) {
             const bots = await Bot.find({ name: { $regex: template, $options: 'i' } }).select('_id');
-            const botIds = bots.map((b) => b._id);
+            const botIds = bots.map((b: { _id: unknown }) => b._id);
             filter.botId = { $in: botIds };
         }
         if (licenseKey) {

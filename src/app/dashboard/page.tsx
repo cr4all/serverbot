@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { io, Socket } from 'socket.io-client';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
+import MessageDialog from '@/components/MessageDialog';
 
 interface LogEntry {
     timestamp: string;
@@ -21,6 +22,12 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingInstance, setEditingInstance] = useState<IBotInstance | null>(null);
+    const [messageDialog, setMessageDialog] = useState<{ open: boolean; title: string; message: string; variant?: 'info' | 'warning' | 'danger' | 'success' }>({
+        open: false,
+        title: '',
+        message: '',
+        variant: 'info',
+    });
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -92,6 +99,14 @@ export default function DashboardPage() {
                 initialData={editingInstance}
             />
 
+            <MessageDialog
+                open={messageDialog.open}
+                title={messageDialog.title}
+                message={messageDialog.message}
+                variant={messageDialog.variant}
+                onClose={() => setMessageDialog({ open: false, title: '', message: '', variant: 'info' })}
+            />
+
             {instances.length === 0 ? (
                 <div className="text-center text-gray-500 py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
                     <p>No bot instances found. Create one to get started!</p>
@@ -104,6 +119,7 @@ export default function DashboardPage() {
                             instance={instance}
                             refresh={fetchInstances}
                             onEdit={() => openEditDialog(instance)}
+                            onMessage={(m) => setMessageDialog(m)}
                         />
                     ))}
                 </div>
@@ -118,11 +134,13 @@ const RECENT_LOGS_MAX = 3;
 function BotCard({
     instance,
     refresh,
-    onEdit
+    onEdit,
+    onMessage,
 }: {
     instance: IBotInstance;
     refresh: () => void;
     onEdit: () => void;
+    onMessage: (m: { open: boolean; title: string; message: string; variant?: 'info' | 'warning' | 'danger' | 'success' }) => void;
 }) {
     const isRunning = instance.status === 'RUNNING';
     const instanceId = instance._id as string;
@@ -193,13 +211,29 @@ function BotCard({
     const toggleStatus = async () => {
         const newStatus = isRunning ? 'STOPPED' : 'RUNNING';
         try {
-            await fetch(`/api/bot-instances/${instance._id}`, {
+            const res = await fetch(`/api/bot-instances/${instance._id}`, {
                 method: 'PATCH',
                 body: JSON.stringify({ status: newStatus })
             });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                onMessage({
+                    open: true,
+                    title: 'Cannot start bot',
+                    message: err?.error || 'Failed to update instance.',
+                    variant: err?.code === 'BOT_TEMPLATE_MAINTENANCE' ? 'warning' : 'danger',
+                });
+                return;
+            }
             refresh();
         } catch (e) {
             console.error(e);
+            onMessage({
+                open: true,
+                title: 'Request failed',
+                message: 'Failed to update instance. Please try again.',
+                variant: 'danger',
+            });
         }
     };
 

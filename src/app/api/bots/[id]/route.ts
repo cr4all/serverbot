@@ -6,6 +6,42 @@ import connectDB from '@/lib/db';
 import Bot from '@/models/Bot';
 import BotAssignment from '@/models/BotAssignment';
 import User from '@/models/User';
+import BotInstance from '@/models/BotInstance';
+
+async function stopRunningInstancesForTemplate(templateId: string) {
+    const running = await BotInstance.find({ botId: templateId, status: 'RUNNING' })
+        .select('_id')
+        .lean<Array<{ _id: mongoose.Types.ObjectId }>>();
+    const ids = running.map((r) => String(r._id));
+    if (ids.length === 0) return { matched: 0, stopped: 0 };
+
+    const BOT_SERVER = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
+    let stopped = 0;
+    await Promise.all(
+        ids.map(async (id) => {
+            try {
+                const res = await fetch(`${BOT_SERVER}/bot/stop/${id}`);
+                if (res.ok) stopped += 1;
+            } catch (e) {
+                console.error('Failed to stop instance for maintenance', id, e);
+            }
+        })
+    );
+
+    // Best-effort: reflect stopped state in DB (even if botmanager stop failed, user should not see RUNNING)
+    await BotInstance.updateMany({ _id: { $in: ids } }, { $set: { status: 'STOPPED' } });
+
+    // Store snapshot for optional restart when maintenance ends
+    try {
+        const oidIds = ids.map((x) => new mongoose.Types.ObjectId(x));
+        await Bot.findByIdAndUpdate(templateId, {
+            $set: { maintenanceSnapshotInstanceIds: oidIds, maintenanceSnapshotCreatedAt: new Date() },
+        });
+    } catch (e) {
+        console.error('Failed to store maintenance snapshot', templateId, e);
+    }
+    return { matched: ids.length, stopped };
+}
 
 export async function PATCH(request: Request, { params }: { params: any }) {
     const session: any = await getServerSession(authOptions);
@@ -23,6 +59,14 @@ export async function PATCH(request: Request, { params }: { params: any }) {
         const before = await Bot.findById(id).lean();
         if (!before) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
+        const currentTemplateStatus = ((before as unknown) as { templateStatus?: 'AVAILABLE' | 'MAINTENANCE' }).templateStatus ?? 'AVAILABLE';
+        const nextTemplateStatus =
+            body.templateStatus === 'MAINTENANCE'
+                ? 'MAINTENANCE'
+                : body.templateStatus === 'AVAILABLE'
+                  ? 'AVAILABLE'
+                  : currentTemplateStatus;
+
         const configParams = Array.isArray(body.configParams) ? body.configParams : (before.configParams ?? []);
         const updatePayload: Record<string, unknown> = {
             name: body.name ?? before.name,
@@ -33,6 +77,7 @@ export async function PATCH(request: Request, { params }: { params: any }) {
             configParams,
             version: body.version ?? before.version ?? '1.0.0',
             isDefault: body.isDefault !== undefined ? !!body.isDefault : !!before.isDefault,
+            templateStatus: nextTemplateStatus,
         };
         await Bot.findByIdAndUpdate(id, updatePayload);
         if (mongoose.connection?.db) {
@@ -44,6 +89,29 @@ export async function PATCH(request: Request, { params }: { params: any }) {
         }
 
         const updated = await Bot.findById(id).lean();
+
+        let maintenanceStopResult: null | { matched: number; stopped: number } = null;
+        if (currentTemplateStatus !== 'MAINTENANCE' && nextTemplateStatus === 'MAINTENANCE') {
+            maintenanceStopResult = await stopRunningInstancesForTemplate(String(id));
+        }
+
+        // If switching back to AVAILABLE, read snapshot fresh from DB (avoid stale/partial data)
+        const snapshotDoc =
+            nextTemplateStatus === 'AVAILABLE'
+                ? await Bot.findById(id)
+                      .select('maintenanceSnapshotInstanceIds maintenanceSnapshotCreatedAt')
+                      .lean<{
+                          maintenanceSnapshotInstanceIds?: mongoose.Types.ObjectId[];
+                          maintenanceSnapshotCreatedAt?: Date | null;
+                      } | null>()
+                : null;
+        const snapshot =
+            nextTemplateStatus === 'AVAILABLE'
+                ? {
+                      instanceIds: snapshotDoc?.maintenanceSnapshotInstanceIds ?? [],
+                      createdAt: snapshotDoc?.maintenanceSnapshotCreatedAt ?? null,
+                  }
+                : null;
 
         // If isDefault changed from falsy to true, assign to all existing users
         try {
@@ -63,7 +131,7 @@ export async function PATCH(request: Request, { params }: { params: any }) {
             console.error('Error assigning default bot to users on update:', e);
         }
 
-        return NextResponse.json(updated);
+        return NextResponse.json({ ...updated, maintenanceStopResult, maintenanceSnapshot: snapshot });
     } catch (e) {
         console.error(e);
         return NextResponse.json({ error: 'Database error' }, { status: 500 });

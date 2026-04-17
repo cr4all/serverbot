@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Tailwind `dark:` 유틸이 `html.dark` 기준으로 동작하도록 강제합니다. */
+/* Ensure Tailwind `dark:` utilities are based on `html.dark`. */
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
@@ -8,7 +8,7 @@
   --foreground: #171717;
 }
 
-/* `html.dark`(토글)일 때도 즉시 전역 변수가 바뀌게 합니다. */
+/* Make global variables switch immediately when `html.dark` is toggled. */
 :root.dark {
   --background: #0a0a0a;
   --foreground: #ededed;
@@ -22,7 +22,7 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  /* 시스템 선호를 따르는 경우에만 적용합니다. */
+  /* Apply only when following system preference. */
   :root[data-theme="system"] {
     --background: #0a0a0a;
     --foreground: #ededed;

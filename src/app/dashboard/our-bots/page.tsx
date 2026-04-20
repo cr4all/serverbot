@@ -133,6 +133,7 @@ export default function OurBotsPage() {
         return <div className="p-8 text-center text-gray-600 dark:text-gray-400">Loading…</div>;
     }
     if (!session) return null;
+    const isAdmin = (session.user as any)?.role === 'admin';
 
     return (
         <div>
@@ -235,7 +236,7 @@ export default function OurBotsPage() {
                                     <button
                                         type="button"
                                         onClick={() => {
-                                            if (isMaintenance) {
+                                            if (isMaintenance && !isAdmin) {
                                                 setMessageDialog({
                                                     open: true,
                                                     title: 'Template unavailable',
@@ -246,7 +247,7 @@ export default function OurBotsPage() {
                                             }
                                             openCreateForTemplate(String(t._id));
                                         }}
-                                        disabled={isMaintenance}
+                                        disabled={isMaintenance && !isAdmin}
                                         className="w-full rounded-md bg-blue-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:focus:ring-offset-gray-900"
                                     >
                                         Create instance

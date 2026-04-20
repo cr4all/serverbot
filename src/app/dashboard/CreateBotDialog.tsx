@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
 import { IBotInstance } from '@/types';
 import MessageDialog from '@/components/MessageDialog';
 
@@ -34,6 +35,7 @@ function resolveBotTier(
 }
 
 export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialData, preselectedBotId }: CreateBotDialogProps) {
+    const { data: session } = useSession();
     const [step, setStep] = useState(STEP_SELECT_TEMPLATE);
     const [loading, setLoading] = useState(false);
     const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -270,6 +272,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const selectedTemplate = templates.find((t) => String(t._id) === String(formData.botId));
     const isFreeTier = resolveBotTier(templates, formData.botId, initialData) === 'free';
     const isCreateFlow = !initialData;
+    const isAdmin = (session?.user as any)?.role === 'admin';
 
     const StepIndicator = () =>
         isCreateFlow ? (
@@ -344,12 +347,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     const params = t.configParams ?? [];
                                     const isMaintenance =
                                         (t as { templateStatus?: 'AVAILABLE' | 'MAINTENANCE' }).templateStatus === 'MAINTENANCE';
+                                    const isBlockedForUser = isMaintenance && !isAdmin;
                                     return (
                                         <button
                                             key={t._id}
                                             type="button"
                                             onClick={() => {
-                                                if (isMaintenance) {
+                                                if (isBlockedForUser) {
                                                     setMessageDialog({
                                                         open: true,
                                                         title: 'Template unavailable',
@@ -360,12 +364,12 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                 }
                                                 setFormData((prev) => ({ ...prev, botId: t._id }));
                                             }}
-                                            disabled={isMaintenance}
+                                            disabled={isBlockedForUser}
                                             className={`relative w-full rounded-xl border-2 p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
                                                 isSelected
                                                     ? 'border-blue-500 bg-blue-50/80 dark:border-blue-400 dark:bg-blue-900/25'
                                                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50/80 dark:border-gray-600 dark:bg-gray-700/50 dark:hover:border-gray-500 dark:hover:bg-gray-700'
-                                            } ${isMaintenance ? 'opacity-60 cursor-not-allowed' : ''}`}
+                                            } ${isBlockedForUser ? 'opacity-60 cursor-not-allowed' : ''}`}
                                             aria-pressed={isSelected}
                                         >
                                             {isSelected && (

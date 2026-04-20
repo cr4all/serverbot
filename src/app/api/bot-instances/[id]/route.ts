@@ -52,6 +52,7 @@ export async function PATCH(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const isAdmin = (session.user as any).role === 'admin';
         const { id } = await params;
         const body = await request.json();
         await connectDB();
@@ -76,7 +77,7 @@ export async function PATCH(
             const t = await Bot.findById(inst.botId)
                 .select('templateStatus name')
                 .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
-            if (t?.templateStatus === 'MAINTENANCE') {
+            if (!isAdmin && t?.templateStatus === 'MAINTENANCE') {
                 return NextResponse.json(
                     { error: 'This bot template is under maintenance and cannot be started right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
                     { status: 423 }

@@ -42,6 +42,7 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const isAdmin = (session.user as any).role === 'admin';
         const userId = (session.user as any).id;
         const body = await request.json();
 
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
             const t = await Bot.findById(body.botId)
                 .select('templateStatus name')
                 .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
-            if (t?.templateStatus === 'MAINTENANCE') {
+            if (!isAdmin && t?.templateStatus === 'MAINTENANCE') {
                 return NextResponse.json(
                     { error: 'This bot template is under maintenance and cannot be created right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
                     { status: 423 }

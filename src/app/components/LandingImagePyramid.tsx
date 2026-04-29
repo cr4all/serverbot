@@ -65,6 +65,7 @@ export default function LandingImagePyramid({ images }: LandingImagePyramidProps
             const isActive = activeIndex === index;
             const zIndex = isActive ? 30 : pose.order;
             const baseScale = index === 0 ? 1.5 : 1;
+            const activeScale = baseScale * 1.22;
 
             return (
               <div
@@ -76,7 +77,7 @@ export default function LandingImagePyramid({ images }: LandingImagePyramidProps
                   zIndex,
                   opacity: isEntered ? 1 : 0,
                   transitionDelay: `${index * 70}ms`,
-                  transform: `translate3d(${Math.round(pose.x * positionScale)}px, ${Math.round((pose.y + (isEntered ? 0 : 30)) * positionScale)}px, ${Math.round((isActive ? 240 : pose.z) * positionScale)}px) rotateZ(${isActive ? 0 : pose.rotate}deg) scale(${isActive ? 1.08 : baseScale})`,
+                  transform: `translate3d(${Math.round(pose.x * positionScale)}px, ${Math.round((pose.y + (isEntered ? 0 : 30)) * positionScale)}px, ${Math.round((isActive ? 240 : pose.z) * positionScale)}px) rotateZ(${isActive ? 0 : pose.rotate}deg) scale(${isActive ? activeScale : baseScale})`,
                 }}
                 onMouseEnter={() => setHoverIndex(index)}
                 onMouseLeave={() => setHoverIndex(null)}

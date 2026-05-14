@@ -638,6 +638,9 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             <>
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Username</label>
+                                    <p className="mt-1 text-[12px] leading-snug text-gray-400 dark:text-gray-500">
+                                        Enter the username, email, or phone number you use to log in to the bookie.
+                                    </p>
                                     <input
                                         type="text"
                                         name="username"
@@ -650,6 +653,9 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
                                 <div>
                                     <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Password</label>
+                                    <p className="mt-1 text-[12px] leading-snug text-gray-400 dark:text-gray-500">
+                                        Enter the password you use to log in to the bookie.
+                                    </p>
                                     <input
                                         type="password"
                                         name="password"

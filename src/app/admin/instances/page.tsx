@@ -22,6 +22,7 @@ export default function AdminInstancesPage() {
     const [configEditMode, setConfigEditMode] = useState(false);
     const [configEditValue, setConfigEditValue] = useState('');
     const [configSaving, setConfigSaving] = useState(false);
+    const [botTemplates, setBotTemplates] = useState<{ _id: string; name: string }[]>([]);
 
     const [filters, setFilters] = useState({
         name: '',
@@ -70,6 +71,27 @@ export default function AdminInstancesPage() {
 
     useEffect(() => {
         fetchInstances({ overridePage: 1 });
+    }, []);
+
+    useEffect(() => {
+        let cancelled = false;
+        (async () => {
+            try {
+                const res = await fetch('/api/bots');
+                if (!res.ok || cancelled) return;
+                const data = await res.json();
+                if (!Array.isArray(data) || cancelled) return;
+                const sorted = [...data]
+                    .map((b: { _id: string; name: string }) => ({ _id: String(b._id), name: b.name || String(b._id) }))
+                    .sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+                setBotTemplates(sorted);
+            } catch (e) {
+                console.error(e);
+            }
+        })();
+        return () => {
+            cancelled = true;
+        };
     }, []);
 
     const handleFilterChange = (key: string, value: string) => {
@@ -278,7 +300,7 @@ export default function AdminInstancesPage() {
                         <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Instance ID</label>
                         <input
                             type="text"
-                            placeholder="Filter by ID…"
+                            placeholder="Partial match on ID…"
                             value={filters.instanceId}
                             onChange={(e) => handleFilterChange('instanceId', e.target.value)}
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
@@ -295,14 +317,17 @@ export default function AdminInstancesPage() {
                         />
                     </div>
                     <div>
-                        <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Template</label>
-                        <input
-                            type="text"
-                            placeholder="Search…"
+                        <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Bot Template</label>
+                        <select
                             value={filters.template}
                             onChange={(e) => handleFilterChange('template', e.target.value)}
                             className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm transition focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400"
-                        />
+                        >
+                            <option value="">All</option>
+                            {botTemplates.map((b) => (
+                                <option key={b._id} value={b._id}>{b.name}</option>
+                            ))}
+                        </select>
                     </div>
                     <div>
                         <label className="mb-1.5 block text-xs font-medium text-gray-500 dark:text-gray-400">Status</label>

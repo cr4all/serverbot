@@ -7,6 +7,10 @@ import BotInstance from '@/models/BotInstance';
 import User from '@/models/User';
 import Bot from '@/models/Bot';
 
+function escapeRegex(str: string) {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 export async function GET(req: NextRequest) {
     const session: any = await getServerSession(authOptions);
     if (!session || session.user.role !== 'admin') {
@@ -34,11 +38,13 @@ export async function GET(req: NextRequest) {
             filter.name = { $regex: name, $options: 'i' };
         }
         if (instanceId) {
-            try {
-                filter._id = new mongoose.Types.ObjectId(instanceId);
-            } catch {
-                filter._id = new mongoose.Types.ObjectId('000000000000000000000000');
-            }
+            filter.$expr = {
+                $regexMatch: {
+                    input: { $toString: '$_id' },
+                    regex: escapeRegex(instanceId),
+                    options: 'i',
+                },
+            };
         }
         if (status) {
             filter.status = status;
@@ -65,9 +71,13 @@ export async function GET(req: NextRequest) {
             filter.userId = { $in: userIds };
         }
         if (template) {
-            const bots = await Bot.find({ name: { $regex: template, $options: 'i' } }).select('_id');
-            const botIds = bots.map((b: { _id: unknown }) => b._id);
-            filter.botId = { $in: botIds };
+            if (mongoose.Types.ObjectId.isValid(template)) {
+                filter.botId = new mongoose.Types.ObjectId(template);
+            } else {
+                const bots = await Bot.find({ name: { $regex: template, $options: 'i' } }).select('_id');
+                const botIds = bots.map((b: { _id: unknown }) => b._id);
+                filter.botId = { $in: botIds };
+            }
         }
         if (licenseKey) {
             filter['config.licenseKey'] = { $regex: licenseKey, $options: 'i' };

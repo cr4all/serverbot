@@ -8,8 +8,9 @@ export interface ParsedStatsQuery {
 
 export function parseStatsQuery(searchParams: URLSearchParams): ParsedStatsQuery | { error: string } {
     const periodRaw = (searchParams.get('period') || 'month').toLowerCase();
-    if (periodRaw !== 'week' && periodRaw !== 'month') {
-        return { error: 'Invalid period (expected week or month)' };
+    const allowed = ['day', 'days7', 'days30', 'year', 'all', 'week', 'month'] as const;
+    if (!allowed.includes(periodRaw as (typeof allowed)[number])) {
+        return { error: `Invalid period (expected one of: ${allowed.join(', ')})` };
     }
 
     const offsetRaw = searchParams.get('offset');
@@ -28,5 +29,5 @@ export function parseStatsQuery(searchParams: URLSearchParams): ParsedStatsQuery
         excludeMock = excludeMockParam === 'true' || excludeMockParam === '1';
     }
 
-    return { period: periodRaw, offset, excludeMock };
+    return { period: periodRaw as ParsedStatsQuery['period'], offset, excludeMock };
 }

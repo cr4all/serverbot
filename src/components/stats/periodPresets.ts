@@ -1,29 +1,28 @@
 import type { StatsPeriodType } from '@/types';
 
-export type PeriodPreset = '7d' | '30d' | 'week' | 'last-week' | 'month' | 'last-month';
+export type PeriodPreset = 'today' | 'week' | 'month' | 'year' | 'all';
 
 export const PERIOD_PRESETS: { id: PeriodPreset; label: string }[] = [
-    { id: '7d', label: '7 days' },
-    { id: '30d', label: '30 days' },
-    { id: 'week', label: 'This week' },
-    { id: 'last-week', label: 'Last week' },
-    { id: 'month', label: 'This month' },
-    { id: 'last-month', label: 'Last month' },
+    { id: 'today', label: 'Today' },
+    { id: 'week', label: '1 week' },
+    { id: 'month', label: '1 month' },
+    { id: 'year', label: '1 year' },
+    { id: 'all', label: 'All' },
 ];
 
 export function presetToApiQuery(preset: PeriodPreset): { period: StatsPeriodType; offset: number } {
     switch (preset) {
-        case '7d':
+        case 'today':
+            return { period: 'day', offset: 0 };
         case 'week':
-            return { period: 'week', offset: 0 };
-        case 'last-week':
-            return { period: 'week', offset: -1 };
-        case '30d':
+            return { period: 'days7', offset: 0 };
         case 'month':
-            return { period: 'month', offset: 0 };
-        case 'last-month':
-            return { period: 'month', offset: -1 };
+            return { period: 'days30', offset: 0 };
+        case 'year':
+            return { period: 'year', offset: 0 };
+        case 'all':
+            return { period: 'all', offset: 0 };
         default:
-            return { period: 'month', offset: 0 };
+            return { period: 'days30', offset: 0 };
     }
 }

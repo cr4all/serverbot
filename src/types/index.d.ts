@@ -61,7 +61,7 @@ export interface IBotInstance {
 }
 
 // Betting stats (PR5b) — mirrors lib/bettingStats BettingStatsPayload
-export type StatsPeriodType = 'week' | 'month';
+export type StatsPeriodType = 'day' | 'days7' | 'days30' | 'year' | 'all' | 'week' | 'month';
 
 export interface IBettingStatsPeriod {
     type: StatsPeriodType;

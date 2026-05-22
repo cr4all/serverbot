@@ -11,7 +11,7 @@ function getPlaceStatus(doc: { placeStatus?: string; status?: string } | null | 
     return ps === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
 }
 
-export type StatsPeriodType = 'week' | 'month';
+export type StatsPeriodType = 'day' | 'days7' | 'days30' | 'year' | 'all' | 'week' | 'month';
 
 export interface StatsPeriod {
     type: StatsPeriodType;
@@ -101,6 +101,40 @@ export function resolveMonthPeriodUTC(ref: Date, offset: number): StatsPeriod {
     return { type: 'month', start, end, offset };
 }
 
+/** UTC calendar day containing ref (offset 0 = that day). */
+export function resolveDayPeriodUTC(ref: Date, offset: number): StatsPeriod {
+    const d = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() + offset, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+    return { type: 'day', start: d, end, offset };
+}
+
+/** Last N calendar days inclusive, ending at end of ref's UTC day. */
+export function resolveRollingDaysUTC(ref: Date, days: number, type: 'days7' | 'days30'): StatsPeriod {
+    const end = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), 23, 59, 59, 999));
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (days - 1));
+    start.setUTCHours(0, 0, 0, 0);
+    return { type, start, end, offset: 0 };
+}
+
+/** UTC calendar year containing ref (offset shifts by whole years). */
+export function resolveYearPeriodUTC(ref: Date, offset: number): StatsPeriod {
+    const y = ref.getUTCFullYear() + offset;
+    const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+    return { type: 'year', start, end, offset };
+}
+
+/** All time — no date filter on fetch; aggregation uses full row set. */
+export function resolveAllPeriod(ref = new Date()): StatsPeriod {
+    return {
+        type: 'all',
+        start: new Date(0),
+        end: ref,
+        offset: 0,
+    };
+}
+
 /** ISO week: Monday 00:00 UTC – Sunday 23:59:59.999 UTC. offset 0 = week containing ref. */
 export function resolveWeekPeriodUTC(ref: Date, offset: number): StatsPeriod {
     const day = ref.getUTCDay();
@@ -116,8 +150,23 @@ export function resolveWeekPeriodUTC(ref: Date, offset: number): StatsPeriod {
 }
 
 export function resolveStatsPeriod(type: StatsPeriodType, offset: number, ref = new Date()): StatsPeriod {
-    if (type === 'month') return resolveMonthPeriodUTC(ref, offset);
-    return resolveWeekPeriodUTC(ref, offset);
+    switch (type) {
+        case 'day':
+            return resolveDayPeriodUTC(ref, offset);
+        case 'days7':
+            return resolveRollingDaysUTC(ref, 7, 'days7');
+        case 'days30':
+            return resolveRollingDaysUTC(ref, 30, 'days30');
+        case 'year':
+            return resolveYearPeriodUTC(ref, offset);
+        case 'all':
+            return resolveAllPeriod(ref);
+        case 'month':
+            return resolveMonthPeriodUTC(ref, offset);
+        case 'week':
+        default:
+            return resolveWeekPeriodUTC(ref, offset);
+    }
 }
 
 export function isMockSettlementRow(row: BetHistoryStatsRow): boolean {
@@ -264,6 +313,10 @@ export function buildStatsFetchMatch(scope: StatsScopeFilter, period: StatsPerio
 
     const mockClause =
         options.excludeMock === true ? { 'settlement.raw.mock': { $ne: true } } : {};
+
+    if (period.type === 'all') {
+        return { ...base, ...mockClause };
+    }
 
     return {
         ...base,

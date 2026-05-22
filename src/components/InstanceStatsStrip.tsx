@@ -35,12 +35,12 @@ function formatMonthPeriodLabel(start: string, end: string): string {
 
 function pnlAccentClass(n: number): string {
     if (n > 0) {
-        return 'border-emerald-200/80 bg-gradient-to-br from-emerald-50/90 via-white to-white dark:border-emerald-800/50 dark:from-emerald-950/40 dark:via-gray-900/60 dark:to-gray-900/40';
+        return 'border-emerald-200/80 bg-emerald-50 dark:border-emerald-800/50 dark:bg-emerald-950/35';
     }
     if (n < 0) {
-        return 'border-red-200/80 bg-gradient-to-br from-red-50/90 via-white to-white dark:border-red-900/50 dark:from-red-950/35 dark:via-gray-900/60 dark:to-gray-900/40';
+        return 'border-red-200/80 bg-red-50 dark:border-red-900/50 dark:bg-red-950/35';
     }
-    return 'border-gray-200/90 bg-gradient-to-br from-gray-50/80 via-white to-white dark:border-gray-700 dark:from-gray-800/50 dark:via-gray-900/50 dark:to-gray-900/40';
+    return 'border-gray-200/90 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50';
 }
 
 function pnlBarClass(n: number): string {

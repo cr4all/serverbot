@@ -31,6 +31,31 @@ describe('resolveStatsPeriod', () => {
         assert.equal(p.start.getUTCDay(), 1);
         assert.ok(p.start <= ref && p.end >= ref);
     });
+
+    it('resolve day period for ref date', () => {
+        const p = resolveStatsPeriod('day', 0, ref);
+        assert.equal(p.type, 'day');
+        assert.equal(p.start.toISOString(), '2026-05-15T00:00:00.000Z');
+        assert.equal(p.end.toISOString(), '2026-05-15T23:59:59.999Z');
+    });
+
+    it('resolve days7 rolling window', () => {
+        const p = resolveStatsPeriod('days7', 0, ref);
+        assert.equal(p.type, 'days7');
+        assert.equal(p.start.toISOString(), '2026-05-09T00:00:00.000Z');
+        assert.equal(p.end.toISOString(), '2026-05-15T23:59:59.999Z');
+    });
+
+    it('resolve days30 rolling window', () => {
+        const p = resolveStatsPeriod('days30', 0, ref);
+        assert.equal(p.start.toISOString(), '2026-04-16T00:00:00.000Z');
+    });
+
+    it('resolve year period', () => {
+        const p = resolveStatsPeriod('year', 0, ref);
+        assert.equal(p.start.toISOString(), '2026-01-01T00:00:00.000Z');
+        assert.equal(p.end.toISOString(), '2026-12-31T23:59:59.999Z');
+    });
 });
 
 describe('aggregateBetStatsFromRows', () => {

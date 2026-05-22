@@ -15,6 +15,12 @@ interface LogEntry {
     message: string;
 }
 
+interface BetSettlement {
+    status?: 'PENDING' | 'SETTLED' | 'UNKNOWN' | 'CANCELLED';
+    result?: string | null;
+    profit?: number | null;
+}
+
 interface BetEntry {
     _id: string;
     createdAt: string;
@@ -24,8 +30,11 @@ interface BetEntry {
     stake: number;
     failedCount: number;
     status: 'SUCCESS' | 'FAILED';
+    placeStatus?: 'SUCCESS' | 'FAILED';
     balance?: number;
     orderId?: string;
+    odds?: number | null;
+    settlement?: BetSettlement;
 }
 
 interface TipEntry {
@@ -218,6 +227,8 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Time</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Order ID</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Odds</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Settlement</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Balance</th>
@@ -226,17 +237,26 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800 text-sm">
-                            {bets.map((bet) => (
+                            {bets.map((bet) => {
+                                const placeStatus = bet.placeStatus ?? bet.status;
+                                const settlementLabel = bet.settlement?.result
+                                    ? bet.settlement.result
+                                    : bet.settlement?.status ?? '—';
+                                return (
                                 <tr key={bet._id}>
                                     <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{new Date(bet.createdAt).toLocaleString()}</td>
                                     <td className="px-3 py-2 max-w-[10rem]" title={bet.orderId || undefined}>
                                         <span className="block truncate font-mono text-xs text-gray-600 dark:text-gray-400">{truncateOrderId(bet.orderId)}</span>
                                     </td>
                                     <td className="px-3 py-2">
-                                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${bet.status === 'SUCCESS' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
-                                            {bet.status}
+                                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${placeStatus === 'SUCCESS' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
+                                            {placeStatus}
                                         </span>
                                     </td>
+                                    <td className="px-3 py-2 text-gray-600 dark:text-gray-300">
+                                        {bet.odds != null ? Number(bet.odds).toFixed(2) : '—'}
+                                    </td>
+                                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-300">{settlementLabel}</td>
                                     <td className="px-3 py-2">
                                         <div className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-sm">{decodeTipMessage(bet.tip || bet.tip_id || '')}</div>
                                     </td>
@@ -258,9 +278,10 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                         </td>
                                     )}
                                 </tr>
-                            ))}
+                            );
+                            })}
                             {bets.length === 0 && (
-                                <tr><td colSpan={isAdmin ? 8 : 7} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
+                                <tr><td colSpan={isAdmin ? 10 : 9} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
                             )}
                         </tbody>
                     </table>

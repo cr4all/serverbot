@@ -27,13 +27,18 @@ export async function GET(request: NextRequest, context: { params: any }) {
     }
 
     const url = new URL(request.url);
-    const limit = Number(url.searchParams.get('limit') || '50');
+    const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || '50'), 1), 500);
+    const includeSettlement = url.searchParams.get('includeSettlement') !== 'false';
 
-    // Query by botInstanceId field in your BetHistory schema
-    const bets = await BetHistory.find({ botInstanceId: instanceId })
+    const query = BetHistory.find({ botInstanceId: instanceId })
       .sort({ createdAt: -1 })
-      .limit(limit)
-      .lean();
+      .limit(limit);
+
+    if (!includeSettlement) {
+      query.select('-settlement.raw');
+    }
+
+    const bets = await query.lean();
 
     return NextResponse.json(bets);
   } catch (error) {

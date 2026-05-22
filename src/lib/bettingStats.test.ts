@@ -9,8 +9,8 @@ import {
     resolveMonthPeriodUTC,
     resolveStatsPeriod,
     resolveWeekPeriodUTC,
-} from './bettingStats';
-import type { BetHistoryStatsRow } from './bettingStats';
+} from './bettingStats.ts';
+import type { BetHistoryStatsRow } from './bettingStats.ts';
 
 const ref = new Date('2026-05-15T12:00:00.000Z');
 

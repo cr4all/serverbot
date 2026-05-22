@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { IBot } from '@/types';
 import CreateBotDialog from '../CreateBotDialog';
 import MessageDialog from '@/components/MessageDialog';
+import TemplateStatsStrip from '@/components/TemplateStatsStrip';
 
 const getBotLogoFileName = (type: string, subtype: number) => {
     const normalizedType = type
@@ -206,6 +207,7 @@ export default function OurBotsPage() {
                                     ) : (
                                         <p className="mt-2 text-sm italic text-gray-400">No description</p>
                                     )}
+                                    <TemplateStatsStrip botId={String(t._id)} className="mt-3" />
                                     <div className="mt-4 flex flex-wrap gap-2">
                                         <span className="rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
                                             {t.type}

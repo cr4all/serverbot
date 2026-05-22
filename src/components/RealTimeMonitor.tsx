@@ -19,6 +19,7 @@ interface BetSettlement {
     status?: 'PENDING' | 'SETTLED' | 'UNKNOWN' | 'CANCELLED';
     result?: string | null;
     profit?: number | null;
+    raw?: { mock?: boolean } | null;
 }
 
 interface BetEntry {
@@ -108,9 +109,12 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                 createdAt: data.createdAt || new Date().toISOString(),
                 stake: data.stake || data.amount || 0,
                 status: data.status || (data.result === 'WIN' ? 'SUCCESS' : 'FAILED'),
+                placeStatus: data.placeStatus || data.status,
                 failedCount: data.failedCount || 0,
                 balance: data.balance,
                 orderId: data.orderId,
+                odds: data.odds,
+                settlement: data.settlement,
             };
             setBets((prev) => [mapped as BetEntry, ...prev].slice(0, 20));
         });
@@ -165,8 +169,11 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         stake: b.stake,
                         failedCount: b.failedCount || 0,
                         status: b.status,
+                        placeStatus: b.placeStatus ?? b.status,
                         balance: b.balance,
                         orderId: b.orderId,
+                        odds: b.odds,
+                        settlement: b.settlement,
                     } as BetEntry));
                     setBets(mapped);
                 }
@@ -226,9 +233,10 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                             <tr>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Time</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Order ID</th>
-                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Place</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Odds</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Settlement</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Profit</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Balance</th>
@@ -242,6 +250,11 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                 const settlementLabel = bet.settlement?.result
                                     ? bet.settlement.result
                                     : bet.settlement?.status ?? '—';
+                                const isMock = bet.settlement?.raw?.mock === true;
+                                const profit =
+                                    bet.settlement?.status === 'SETTLED' && bet.settlement.profit != null
+                                        ? Number(bet.settlement.profit)
+                                        : null;
                                 return (
                                 <tr key={bet._id}>
                                     <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{new Date(bet.createdAt).toLocaleString()}</td>
@@ -256,7 +269,27 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                     <td className="px-3 py-2 text-gray-600 dark:text-gray-300">
                                         {bet.odds != null ? Number(bet.odds).toFixed(2) : '—'}
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-300">{settlementLabel}</td>
+                                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
+                                        <span>{settlementLabel}</span>
+                                        {isMock && (
+                                            <span className="ml-1 rounded bg-violet-100 px-1 py-0.5 text-[10px] font-semibold text-violet-800 dark:bg-violet-900/50 dark:text-violet-200">
+                                                mock
+                                            </span>
+                                        )}
+                                    </td>
+                                    <td
+                                        className={`px-3 py-2 text-sm font-medium tabular-nums ${
+                                            profit == null
+                                                ? 'text-gray-400'
+                                                : profit > 0
+                                                  ? 'text-emerald-600 dark:text-emerald-400'
+                                                  : profit < 0
+                                                    ? 'text-red-600 dark:text-red-400'
+                                                    : 'text-gray-600 dark:text-gray-300'
+                                        }`}
+                                    >
+                                        {profit != null ? (profit > 0 ? `+$${profit.toFixed(2)}` : `$${profit.toFixed(2)}`) : '—'}
+                                    </td>
                                     <td className="px-3 py-2">
                                         <div className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-sm">{decodeTipMessage(bet.tip || bet.tip_id || '')}</div>
                                     </td>
@@ -281,7 +314,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                             );
                             })}
                             {bets.length === 0 && (
-                                <tr><td colSpan={isAdmin ? 10 : 9} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
+                                <tr><td colSpan={isAdmin ? 11 : 10} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
                             )}
                         </tbody>
                     </table>

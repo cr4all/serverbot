@@ -1,19 +1,13 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { io, Socket } from 'socket.io-client';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
 import MessageDialog from '@/components/MessageDialog';
-
-interface LogEntry {
-    timestamp: string;
-    level: string;
-    message: string;
-}
+import InstanceStatsStrip from '@/components/InstanceStatsStrip';
 
 export default function DashboardPage() {
     const { data: session, status } = useSession();
@@ -129,7 +123,6 @@ export default function DashboardPage() {
 }
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
-const RECENT_LOGS_MAX = 3;
 
 function BotCard({
     instance,
@@ -145,35 +138,8 @@ function BotCard({
     const isRunning = instance.status === 'RUNNING';
     const instanceId = instance._id as string;
 
-    const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
-    const socketRef = useRef<Socket | null>(null);
-
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [balanceError, setBalanceError] = useState<string | null>(null);
-
-    // WebSocket: subscribe to logs for this instance, keep last 2–3
-    useEffect(() => {
-        setRecentLogs([]);
-        socketRef.current = io(SOCKET_URL, {
-            query: { instanceId },
-            transports: ['websocket'],
-        });
-
-        socketRef.current.on('connect', () => {
-            socketRef.current?.send(JSON.stringify({ subscribe: instanceId }));
-        });
-
-        socketRef.current.on('log', (data: LogEntry) => {
-            setRecentLogs((prev) => [data, ...prev].slice(0, RECENT_LOGS_MAX));
-        });
-
-        return () => {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
-        };
-    }, [instanceId]);
 
     const fetchBalanceFromServer = async () => {
         setBalanceError(null);
@@ -293,21 +259,7 @@ function BotCard({
                         Status: <span className={`font-medium ${isRunning ? 'text-green-600' : 'text-red-600'}`}>{instance.status}</span>
                     </p>
                 </div>
-                {/* Recent logs (2–3) */}
-                <div className="mt-3 min-h-[4.5rem] rounded border border-gray-200 bg-gray-50 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-700/50">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Recent logs</p>
-                    {recentLogs.length === 0 ? (
-                        <p className="text-xs text-gray-500 dark:text-gray-400">—</p>
-                    ) : (
-                        <ul className="space-y-0.5 overflow-hidden">
-                            {recentLogs.map((log, i) => (
-                                <li key={i} className="text-xs text-gray-700 dark:text-gray-300 truncate" title={log.message}>
-                                    [{log.level}] {log.message}
-                                </li>
-                            ))}
-                        </ul>
-                    )}
-                </div>
+                <InstanceStatsStrip botInstanceId={instanceId} className="mt-3" />
                 <div className="mt-6 flex flex-wrap gap-2">
                     <button
                         onClick={toggleStatus}

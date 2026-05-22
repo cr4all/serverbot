@@ -4,6 +4,13 @@ export function formatSignedMoney(n: number): string {
     return `${sign}$${v.toFixed(2)}`;
 }
 
+/** Template strip: net PnL as staking units (no currency symbol). */
+export function formatSignedUnits(n: number): string {
+    const v = Number(n) || 0;
+    const sign = v > 0 ? '+' : '';
+    return `${sign}${v.toFixed(2)} units`;
+}
+
 export function formatPercent(n: number): string {
     const v = Number(n) || 0;
     return `${v.toFixed(1)}%`;

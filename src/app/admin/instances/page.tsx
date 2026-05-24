@@ -2,8 +2,12 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import RealTimeMonitor from '@/components/RealTimeMonitor';
+import InstancePerformance from '@/components/InstancePerformance';
+import InstanceStatsStrip from '@/components/InstanceStatsStrip';
 
 const STATUS_OPTIONS = ['', 'RUNNING', 'STOPPED', 'STARTING', 'STOPPING', 'ERROR'] as const;
+
+type DetailTab = 'monitor' | 'performance';
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
@@ -22,6 +26,7 @@ export default function AdminInstancesPage() {
     const [configEditMode, setConfigEditMode] = useState(false);
     const [configEditValue, setConfigEditValue] = useState('');
     const [configSaving, setConfigSaving] = useState(false);
+    const [detailTab, setDetailTab] = useState<DetailTab>('monitor');
     const [botTemplates, setBotTemplates] = useState<{ _id: string; name: string }[]>([]);
 
     const [filters, setFilters] = useState({
@@ -160,6 +165,7 @@ export default function AdminInstancesPage() {
     const viewInstance = async (id: string) => {
         setConfigEditMode(false);
         setConfigEditValue('');
+        setDetailTab('monitor');
         setDetailLoading(true);
         try {
             const [resInst, resBets] = await Promise.all([
@@ -536,57 +542,115 @@ export default function AdminInstancesPage() {
                             <p className="font-mono text-xs text-gray-400 dark:text-gray-500">{selected._id}</p>
                         </div>
                         <button
-                            onClick={() => { setSelected(null); setBets([]); setConfigEditMode(false); setConfigEditValue(''); }}
+                            onClick={() => {
+                                setSelected(null);
+                                setBets([]);
+                                setConfigEditMode(false);
+                                setConfigEditValue('');
+                                setDetailTab('monitor');
+                            }}
                             className="rounded-lg px-3 py-1.5 text-sm font-medium text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
                         >
                             Close
                         </button>
                     </div>
-                    <div className="p-6">
-                        <div className="mb-6">
-                            <RealTimeMonitor instanceId={selected._id} />
-                        </div>
-                        <div>
-                            <div className="mb-2 flex items-center justify-between">
-                                <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Config</h3>
-                                {configEditMode ? (
-                                    <div className="flex gap-2">
-                                        <button
-                                            onClick={saveConfig}
-                                            disabled={configSaving}
-                                            className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
-                                        >
-                                            {configSaving ? 'Saving…' : 'Save'}
-                                        </button>
-                                        <button
-                                            onClick={cancelEditConfig}
-                                            disabled={configSaving}
-                                            className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
-                                        >
-                                            Cancel
-                                        </button>
-                                    </div>
-                                ) : (
-                                    <button
-                                        onClick={startEditConfig}
-                                        className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                    <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                        <p className="mb-2 text-[10px] font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">
+                            Last month snapshot
+                        </p>
+                        <InstanceStatsStrip botInstanceId={selected._id} />
+                    </div>
+                    <div className="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                        <div
+                            className="inline-flex w-full max-w-md rounded-xl border border-gray-200 bg-gray-100/80 p-1 dark:border-gray-700 dark:bg-gray-900/60 sm:w-auto"
+                            role="tablist"
+                            aria-label="Instance views"
+                        >
+                            {([
+                                { id: 'monitor' as const, label: 'Live monitor', description: 'Logs, bets & tips' },
+                                { id: 'performance' as const, label: 'Performance', description: 'PnL & analytics' },
+                            ]).map((t) => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={detailTab === t.id}
+                                    onClick={() => setDetailTab(t.id)}
+                                    className={`flex flex-1 flex-col rounded-lg px-4 py-2.5 text-left transition sm:flex-none sm:min-w-[8.5rem] ${
+                                        detailTab === t.id
+                                            ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-white'
+                                            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                                    }`}
+                                >
+                                    <span className="text-sm font-semibold">{t.label}</span>
+                                    <span
+                                        className={`mt-0.5 text-[10px] ${
+                                            detailTab === t.id
+                                                ? 'text-gray-500 dark:text-gray-400'
+                                                : 'text-gray-400 dark:text-gray-500'
+                                        }`}
                                     >
-                                        Edit Config
-                                    </button>
-                                )}
-                            </div>
-                            {configEditMode ? (
-                                <textarea
-                                    value={configEditValue}
-                                    onChange={(e) => setConfigEditValue(e.target.value)}
-                                    className="max-h-60 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white p-4 font-mono text-xs text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-blue-400 dark:focus:ring-blue-400"
-                                    spellCheck={false}
-                                    placeholder="{}"
-                                />
-                            ) : (
-                                <pre className="max-h-60 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">{JSON.stringify(selected.config || {}, null, 2)}</pre>
-                            )}
+                                        {t.description}
+                                    </span>
+                                </button>
+                            ))}
                         </div>
+                    </div>
+                    <div className="p-6">
+                        {detailLoading ? (
+                            <div className="flex min-h-[120px] items-center justify-center">
+                                <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
+                            </div>
+                        ) : detailTab === 'monitor' ? (
+                            <>
+                                <div className="mb-6">
+                                    <RealTimeMonitor instanceId={selected._id} />
+                                </div>
+                                <div>
+                                    <div className="mb-2 flex items-center justify-between">
+                                        <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300">Config</h3>
+                                        {configEditMode ? (
+                                            <div className="flex gap-2">
+                                                <button
+                                                    onClick={saveConfig}
+                                                    disabled={configSaving}
+                                                    className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-500 dark:hover:bg-blue-600"
+                                                >
+                                                    {configSaving ? 'Saving…' : 'Save'}
+                                                </button>
+                                                <button
+                                                    onClick={cancelEditConfig}
+                                                    disabled={configSaving}
+                                                    className="rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 dark:hover:bg-gray-600"
+                                                >
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        ) : (
+                                            <button
+                                                onClick={startEditConfig}
+                                                className="rounded-lg px-3 py-1.5 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                                            >
+                                                Edit Config
+                                            </button>
+                                        )}
+                                    </div>
+                                    {configEditMode ? (
+                                        <textarea
+                                            value={configEditValue}
+                                            onChange={(e) => setConfigEditValue(e.target.value)}
+                                            className="max-h-60 min-h-[200px] w-full resize-y rounded-lg border border-gray-300 bg-white p-4 font-mono text-xs text-gray-800 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200 dark:focus:border-blue-400 dark:focus:ring-blue-400"
+                                            spellCheck={false}
+                                            placeholder="{}"
+                                        />
+                                    ) : (
+                                        <pre className="max-h-60 overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-4 font-mono text-xs text-gray-800 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-200">{JSON.stringify(selected.config || {}, null, 2)}</pre>
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <InstancePerformance instanceId={selected._id} embedded />
+                        )}
                     </div>
                 </div>
             )}

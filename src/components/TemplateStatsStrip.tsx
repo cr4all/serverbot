@@ -19,6 +19,33 @@ interface TemplateStatsStripProps {
     className?: string;
 }
 
+function zeroedStats(stats: ITemplateBettingStatsResponse): ITemplateBettingStatsResponse {
+    return {
+        ...stats,
+        execution: {
+            betsPlaced: 0,
+            submitFailed: 0,
+            submitSuccessRate: 0,
+        },
+        settlement: {
+            settled: 0,
+            pending: 0,
+            won: 0,
+            lost: 0,
+            draw: 0,
+            void: 0,
+        },
+        performance: {
+            netPnL: 0,
+            roi: 0,
+            winRate: 0,
+            avgOdds: 0,
+            totalStakedSettled: 0,
+        },
+        series: { cumulativePnLByDay: [] },
+    };
+}
+
 function formatPeriodLabel(start: string, end: string): string {
     try {
         const s = new Date(start);
@@ -167,9 +194,7 @@ function StatsContent({
     const { performance, settlement, period } = stats;
     const netPnL = performance.netPnL;
     const periodLabel = formatPeriodLabel(period.start, period.end);
-    const hasWinRate = settlement.won + settlement.lost > 0;
-    const roiDisplay =
-        performance.totalStakedSettled > 0 ? formatPercent(performance.roi) : '—';
+    const roiDisplay = formatPercent(performance.roi);
 
     const heroValue = (
         <span className={`font-bold tabular-nums tracking-tight ${pnlColorClass(netPnL)}`}>
@@ -200,14 +225,12 @@ function StatsContent({
                     </p>
                     <p className="text-base leading-tight">{heroValue}</p>
                 </div>
-                {hasWinRate && (
-                    <div className="shrink-0 text-right">
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400">Win</p>
-                        <p className="text-xs font-semibold tabular-nums text-gray-800 dark:text-gray-200">
-                            {formatPercent(performance.winRate)}
-                        </p>
-                    </div>
-                )}
+                <div className="shrink-0 text-right">
+                    <p className="text-[10px] text-gray-500 dark:text-gray-400">Win</p>
+                    <p className="text-xs font-semibold tabular-nums text-gray-800 dark:text-gray-200">
+                        {formatPercent(performance.winRate)}
+                    </p>
+                </div>
             </div>
         );
     }
@@ -258,7 +281,7 @@ function StatsContent({
                 />
                 <MiniMetric
                     label="Win rate"
-                    value={hasWinRate ? formatPercent(performance.winRate) : '—'}
+                    value={formatPercent(performance.winRate)}
                 />
                 <MiniMetric label="Settled" value={String(settlement.settled)} />
             </div>
@@ -355,44 +378,11 @@ export default function TemplateStatsStrip({
 
     if (!stats) return null;
 
-    if (stats.insufficientData) {
-        return (
-            <StripShell compact={compact} className={className} title={DISCLAIMER}>
-                <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                        <svg
-                            className="h-4 w-4 text-amber-600 dark:text-amber-400"
-                            viewBox="0 0 20 20"
-                            fill="currentColor"
-                            aria-hidden
-                        >
-                            <path
-                                fillRule="evenodd"
-                                d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 00-.75.75v3.5a.75.75 0 001.5 0v-3.5A.75.75 0 0010 6zm0 9a1 1 0 100-2 1 1 0 000 2z"
-                                clipRule="evenodd"
-                            />
-                        </svg>
-                    </div>
-                    <div>
-                        <p
-                            className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-gray-700 dark:text-gray-300`}
-                        >
-                            Not enough settled data
-                        </p>
-                        {!compact && (
-                            <p className="mt-0.5 text-[10px] text-gray-400 dark:text-gray-500">
-                                Need at least {stats.minSettledRequired} settled bets · {DISCLAIMER}
-                            </p>
-                        )}
-                    </div>
-                </div>
-            </StripShell>
-        );
-    }
+    const displayStats = stats.insufficientData ? zeroedStats(stats) : stats;
 
     return (
-        <StripShell compact={compact} accentPnL={stats.performance.netPnL} className={className} title={DISCLAIMER}>
-            <StatsContent stats={stats} compact={compact} />
+        <StripShell compact={compact} accentPnL={displayStats.performance.netPnL} className={className} title={DISCLAIMER}>
+            <StatsContent stats={displayStats} compact={compact} />
         </StripShell>
     );
 }

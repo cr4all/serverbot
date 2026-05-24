@@ -15,11 +15,217 @@ interface LogEntry {
     message: string;
 }
 
+type SettlementResult = 'WON' | 'LOST' | 'DRAW' | 'VOID' | 'HALF_WON' | 'HALF_LOST' | 'CASHOUT';
+
 interface BetSettlement {
     status?: 'PENDING' | 'SETTLED' | 'UNKNOWN' | 'CANCELLED';
-    result?: string | null;
+    result?: SettlementResult | string | null;
     profit?: number | null;
     raw?: { mock?: boolean } | null;
+}
+
+type SettlementDisplayKind =
+    | 'none'
+    | 'pending'
+    | 'won'
+    | 'lost'
+    | 'draw'
+    | 'void'
+    | 'half_won'
+    | 'half_lost'
+    | 'cashout'
+    | 'unknown'
+    | 'cancelled'
+    | 'settled';
+
+function resolveSettlementDisplay(settlement?: BetSettlement): { kind: SettlementDisplayKind; label: string } {
+    if (!settlement) return { kind: 'none', label: '—' };
+
+    const result = settlement.result?.toString().toUpperCase();
+    if (result) {
+        switch (result) {
+            case 'WON':
+                return { kind: 'won', label: 'Won' };
+            case 'LOST':
+                return { kind: 'lost', label: 'Lost' };
+            case 'DRAW':
+                return { kind: 'draw', label: 'Draw' };
+            case 'VOID':
+                return { kind: 'void', label: 'Void' };
+            case 'HALF_WON':
+                return { kind: 'half_won', label: 'Half won' };
+            case 'HALF_LOST':
+                return { kind: 'half_lost', label: 'Half lost' };
+            case 'CASHOUT':
+                return { kind: 'cashout', label: 'Cash out' };
+        }
+    }
+
+    switch (settlement.status) {
+        case 'PENDING':
+            return { kind: 'pending', label: 'Pending settlement' };
+        case 'SETTLED':
+            return { kind: 'settled', label: 'Settled' };
+        case 'UNKNOWN':
+            return { kind: 'unknown', label: 'Unknown' };
+        case 'CANCELLED':
+            return { kind: 'cancelled', label: 'Cancelled' };
+        default:
+            return { kind: 'none', label: '—' };
+    }
+}
+
+const SETTLEMENT_ICON_STYLES: Record<SettlementDisplayKind, string> = {
+    none: 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500',
+    pending: 'bg-amber-100 text-amber-600 dark:bg-amber-900/50 dark:text-amber-400',
+    won: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400',
+    lost: 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400',
+    draw: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+    void: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+    half_won: 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-300 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-700',
+    half_lost: 'bg-red-50 text-red-700 ring-1 ring-red-300 dark:bg-red-950/40 dark:text-red-300 dark:ring-red-700',
+    cashout: 'bg-sky-100 text-sky-600 dark:bg-sky-900/50 dark:text-sky-400',
+    unknown: 'bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400',
+    cancelled: 'bg-orange-100 text-orange-600 dark:bg-orange-900/50 dark:text-orange-400',
+    settled: 'bg-blue-100 text-blue-600 dark:bg-blue-900/50 dark:text-blue-400',
+};
+
+function SettlementStatusIcon({ settlement, isMock }: { settlement?: BetSettlement; isMock?: boolean }) {
+    const { kind, label } = resolveSettlementDisplay(settlement);
+    const title = isMock ? `${label} (mock)` : label;
+
+    const icon = (() => {
+        switch (kind) {
+            case 'pending':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'won':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 17a.75.75 0 01-.75-.75V5.612L6.29 8.77a.75.75 0 01-1.06-1.06l4.25-4.25a.75.75 0 011.06 0l4.25 4.25a.75.75 0 11-1.06 1.06l-2.96-2.96V16.25A.75.75 0 0110 17z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'lost':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 3a.75.75 0 01.75.75v10.638l2.96-2.96a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0l-4.25-4.25a.75.75 0 111.06-1.06l2.96 2.96V3.75A.75.75 0 0110 3z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'draw':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path fillRule="evenodd" d="M4 10a.75.75 0 01.75-.75h10.5a.75.75 0 010 1.5H4.75A.75.75 0 014 10z" clipRule="evenodd" />
+                    </svg>
+                );
+            case 'void':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM7.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-2.72 2.72a.75.75 0 101.06 1.06L10 11.06l2.72 2.72a.75.75 0 101.06-1.06L11.06 10l2.72-2.72a.75.75 0 00-1.06-1.06L10 8.94 7.28 7.22z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'half_won':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-10.25a.75.75 0 00-1.5 0v4.19l-2.22 2.22a.75.75 0 101.06 1.06l2.72-2.72A.75.75 0 0010.75 7.75z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'half_lost':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-7.75a.75.75 0 00-1.5 0v4.19l2.22 2.22a.75.75 0 11-1.06 1.06l-2.72-2.72A.75.75 0 0110.75 10.25z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'cashout':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path d="M10.75 10.75a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+                        <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12.25a.75.75 0 00-1.5 0v1.086c-.87.14-1.5.78-1.5 1.664 0 .966.784 1.75 1.75 1.75h1.5a.25.25 0 010 .5h-2.25a.75.75 0 000 1.5h.086V14.5a.75.75 0 001.5 0v-1.086c.87-.14 1.5-.78 1.5-1.664 0-.966-.784-1.75-1.75-1.75h-1.5a.25.25 0 010-.5h2.25a.75.75 0 000-1.5h-.086V5.75z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'unknown':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'cancelled':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            case 'settled':
+                return (
+                    <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                        <path
+                            fillRule="evenodd"
+                            d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                            clipRule="evenodd"
+                        />
+                    </svg>
+                );
+            default:
+                return <span className="text-xs font-medium leading-none">—</span>;
+        }
+    })();
+
+    return (
+        <span className="inline-flex items-center justify-center gap-1">
+            <span
+                className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${SETTLEMENT_ICON_STYLES[kind]}`}
+                title={title}
+                aria-label={title}
+            >
+                {icon}
+            </span>
+            {isMock && (
+                <span
+                    className="h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500 dark:bg-violet-400"
+                    title="mock"
+                    aria-label="mock"
+                />
+            )}
+        </span>
+    );
 }
 
 interface BetEntry {
@@ -43,6 +249,40 @@ interface TipEntry {
     timestamp: string;
     message: string;
     source: string;
+}
+
+function PlaceStatusIcon({ status }: { status: 'SUCCESS' | 'FAILED' }) {
+    const isSuccess = status === 'SUCCESS';
+    const label = isSuccess ? 'Success' : 'Failed';
+    return (
+        <span
+            className={`inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
+                isSuccess
+                    ? 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/50 dark:text-emerald-400'
+                    : 'bg-red-100 text-red-600 dark:bg-red-900/50 dark:text-red-400'
+            }`}
+            title={label}
+            aria-label={label}
+        >
+            {isSuccess ? (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path
+                        fillRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
+                        clipRule="evenodd"
+                    />
+                </svg>
+            ) : (
+                <svg className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                    <path
+                        fillRule="evenodd"
+                        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                        clipRule="evenodd"
+                    />
+                </svg>
+            )}
+        </span>
+    );
 }
 
 export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
@@ -201,6 +441,20 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         }
     };
 
+    const formatBetTime = (iso: string) => {
+        const d = new Date(iso);
+        if (Number.isNaN(d.getTime())) return '—';
+        return d.toLocaleString(undefined, {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        });
+    };
+
     const truncateOrderId = (id: string | undefined, maxLen = 20) => {
         if (!id) return '—';
         if (id.length <= maxLen) return id;
@@ -233,9 +487,13 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                             <tr>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Time</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Order ID</th>
-                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Place</th>
+                                <th className="w-14 px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300" title="Bet placement status">
+                                    PLACE
+                                </th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Odds</th>
-                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Settlement</th>
+                                <th className="w-14 px-2 py-2 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300" title="Settlement status">
+                                    STATUS
+                                </th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Profit</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
@@ -247,9 +505,6 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800 text-sm">
                             {bets.map((bet) => {
                                 const placeStatus = bet.placeStatus ?? bet.status;
-                                const settlementLabel = bet.settlement?.result
-                                    ? bet.settlement.result
-                                    : bet.settlement?.status ?? '—';
                                 const isMock = bet.settlement?.raw?.mock === true;
                                 const profit =
                                     bet.settlement?.status === 'SETTLED' && bet.settlement.profit != null
@@ -257,25 +512,18 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                                         : null;
                                 return (
                                 <tr key={bet._id}>
-                                    <td className="px-3 py-2 text-gray-500 dark:text-gray-300">{new Date(bet.createdAt).toLocaleString()}</td>
+                                    <td className="whitespace-nowrap px-3 py-2 tabular-nums text-gray-500 dark:text-gray-300">{formatBetTime(bet.createdAt)}</td>
                                     <td className="px-3 py-2 max-w-[10rem]" title={bet.orderId || undefined}>
                                         <span className="block truncate font-mono text-xs text-gray-600 dark:text-gray-400">{truncateOrderId(bet.orderId)}</span>
                                     </td>
-                                    <td className="px-3 py-2">
-                                        <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${placeStatus === 'SUCCESS' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
-                                            {placeStatus}
-                                        </span>
+                                    <td className="w-14 px-2 py-2 text-center">
+                                        <PlaceStatusIcon status={placeStatus === 'SUCCESS' ? 'SUCCESS' : 'FAILED'} />
                                     </td>
                                     <td className="px-3 py-2 text-gray-600 dark:text-gray-300">
                                         {bet.odds != null ? Number(bet.odds).toFixed(2) : '—'}
                                     </td>
-                                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-300">
-                                        <span>{settlementLabel}</span>
-                                        {isMock && (
-                                            <span className="ml-1 rounded bg-violet-100 px-1 py-0.5 text-[10px] font-semibold text-violet-800 dark:bg-violet-900/50 dark:text-violet-200">
-                                                mock
-                                            </span>
-                                        )}
+                                    <td className="w-14 px-2 py-2 text-center">
+                                        <SettlementStatusIcon settlement={bet.settlement} isMock={isMock} />
                                     </td>
                                     <td
                                         className={`px-3 py-2 text-sm font-medium tabular-nums ${

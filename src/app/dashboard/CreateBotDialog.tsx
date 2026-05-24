@@ -406,15 +406,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                     Parameters: {params.map((p: { paramName: string }) => p.paramName).join(', ')}
                                                 </p>
                                             )}
-                                            {isSelected && (
-                                                <div
-                                                    className="mt-3"
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    onKeyDown={(e) => e.stopPropagation()}
-                                                >
-                                                    <TemplateStatsStrip botId={String(t._id)} compact />
-                                                </div>
-                                            )}
+                                            <div
+                                                className="mt-3"
+                                                onClick={(e) => e.stopPropagation()}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                            >
+                                                <TemplateStatsStrip botId={String(t._id)} compact />
+                                            </div>
                                         </button>
                                     );
                                 })}

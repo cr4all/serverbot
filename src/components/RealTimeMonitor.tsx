@@ -251,6 +251,8 @@ interface TipEntry {
     source: string;
 }
 
+const BET_PAGE_SIZES = [10, 25, 50] as const;
+
 function PlaceStatusIcon({ status }: { status: 'SUCCESS' | 'FAILED' }) {
     const isSuccess = status === 'SUCCESS';
     const label = isSuccess ? 'Success' : 'Failed';
@@ -290,10 +292,24 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
     const isAdmin = (session?.user as any)?.role === 'admin';
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [bets, setBets] = useState<BetEntry[]>([]);
+    const [betsPage, setBetsPage] = useState(1);
+    const [betsLimit, setBetsLimit] = useState(10);
+    const [betsTotal, setBetsTotal] = useState(0);
+    const [betsTotalPages, setBetsTotalPages] = useState(1);
     const [tips, setTips] = useState<TipEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const [currentBalance, setCurrentBalance] = useState(0); // Default simulated balance
     const socketRef = useRef<Socket | null>(null);
+    const betsPageRef = useRef(betsPage);
+    const betsLimitRef = useRef(betsLimit);
+
+    useEffect(() => {
+        betsPageRef.current = betsPage;
+    }, [betsPage]);
+
+    useEffect(() => {
+        betsLimitRef.current = betsLimit;
+    }, [betsLimit]);
     // Use client-exposed env var. NEXT_PUBLIC_* vars are inlined into browser bundles.
     // Keep fallback to server-only BOTMANAGER_URL and localhost for safety.
     const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
@@ -320,6 +336,9 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         // Clear any previous logs, bets, and tips when this monitor is opened or when instanceId changes
         setLogs([]);
         setBets([]);
+        setBetsPage(1);
+        setBetsTotal(0);
+        setBetsTotalPages(1);
         setTips([]);
 
         // socket connection
@@ -356,7 +375,15 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                 odds: data.odds,
                 settlement: data.settlement,
             };
-            setBets((prev) => [mapped as BetEntry, ...prev].slice(0, 20));
+            setBets((prev) => {
+                if (betsPageRef.current !== 1) return prev;
+                const exists = prev.some((b) => b._id === mapped._id);
+                if (exists) return prev;
+                return [mapped as BetEntry, ...prev].slice(0, betsLimitRef.current);
+            });
+            if (betsPageRef.current === 1) {
+                setBetsTotal((t) => t + 1);
+            }
         });
 
         socketRef.current.on('tip', (data: TipEntry) => {
@@ -391,31 +418,50 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         };
     }, [instanceId, SOCKET_URL]);
 
+    const mapBetRows = (rows: any[]): BetEntry[] =>
+        (rows || []).map(
+            (b: any) =>
+                ({
+                    _id: b._id,
+                    createdAt: b.createdAt,
+                    botInstanceId: b.botInstanceId || b.botInstance || b.botInstanceId,
+                    tip_id: b.tip_id,
+                    tip: b.tip,
+                    stake: b.stake,
+                    failedCount: b.failedCount || 0,
+                    status: b.status,
+                    placeStatus: b.placeStatus ?? b.status,
+                    balance: b.balance,
+                    orderId: b.orderId,
+                    odds: b.odds,
+                    settlement: b.settlement,
+                }) as BetEntry
+        );
+
     // Poll DB for BetHistory for this instance
     useEffect(() => {
         let mounted = true;
         const fetchBets = async () => {
             try {
-                const res = await fetch(`/api/bet-history/${instanceId}?limit=10`);
+                const params = new URLSearchParams({
+                    page: String(betsPage),
+                    limit: String(betsLimit),
+                });
+                const res = await fetch(`/api/bet-history/${instanceId}?${params}`);
                 if (!res.ok) return;
                 const dataRaw = await res.json();
-                if (mounted) {
-                    const mapped = (dataRaw || []).map((b: any) => ({
-                        _id: b._id,
-                        createdAt: b.createdAt,
-                        botInstanceId: b.botInstanceId || b.botInstance || b.botInstanceId,
-                        tip_id: b.tip_id,
-                        tip: b.tip,
-                        stake: b.stake,
-                        failedCount: b.failedCount || 0,
-                        status: b.status,
-                        placeStatus: b.placeStatus ?? b.status,
-                        balance: b.balance,
-                        orderId: b.orderId,
-                        odds: b.odds,
-                        settlement: b.settlement,
-                    } as BetEntry));
-                    setBets(mapped);
+                if (!mounted) return;
+                const rows = dataRaw?.bets ?? [];
+                const pagination = dataRaw?.pagination;
+                const totalPages = pagination?.totalPages ?? 1;
+                if (betsPage > totalPages) {
+                    setBetsPage(totalPages);
+                    return;
+                }
+                setBets(mapBetRows(rows));
+                if (pagination) {
+                    setBetsTotal(pagination.total ?? 0);
+                    setBetsTotalPages(totalPages);
                 }
             } catch (e) {
                 console.error('Failed to fetch bet history', e);
@@ -429,13 +475,28 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             mounted = false;
             clearInterval(poll);
         };
-    }, [instanceId]);
+    }, [instanceId, betsPage, betsLimit]);
+
+    const goToBetsPage = (p: number) => {
+        setBetsPage(Math.min(Math.max(1, p), betsTotalPages));
+    };
+
+    const handleBetsLimitChange = (newLimit: number) => {
+        setBetsLimit(newLimit);
+        setBetsPage(1);
+    };
 
     const removeBet = async (betId: string) => {
         try {
             const res = await fetch(`/api/bet-history/${instanceId}?betId=${encodeURIComponent(betId)}`, { method: 'DELETE' });
             if (!res.ok) return;
-            setBets((prev) => prev.filter((b) => b._id !== betId));
+            const remainingOnPage = bets.filter((b) => b._id !== betId).length;
+            setBetsTotal((t) => Math.max(0, t - 1));
+            if (remainingOnPage === 0 && betsPage > 1) {
+                setBetsPage((p) => p - 1);
+            } else {
+                setBets((prev) => prev.filter((b) => b._id !== betId));
+            }
         } catch (e) {
             console.error('Failed to remove bet', e);
         }
@@ -480,7 +541,14 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Betting History - full width first row */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800 lg:col-span-2">
-                <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
+                    {betsTotal > 0 && (
+                        <span className="text-sm text-gray-500 dark:text-gray-400">
+                            Showing {(betsPage - 1) * betsLimit + 1}–{Math.min(betsPage * betsLimit, betsTotal)} of {betsTotal}
+                        </span>
+                    )}
+                </div>
                 <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-700">
@@ -567,6 +635,73 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         </tbody>
                     </table>
                 </div>
+                {(betsTotal > 0 || betsTotalPages > 1) && (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-lg border border-gray-200 bg-gray-50/80 px-4 py-3 dark:border-gray-700 dark:bg-gray-900/40">
+                        <select
+                            value={betsLimit}
+                            onChange={(e) => handleBetsLimitChange(Number(e.target.value))}
+                            className="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-white"
+                            aria-label="Bets per page"
+                        >
+                            {BET_PAGE_SIZES.map((s) => (
+                                <option key={s} value={s}>
+                                    {s} per page
+                                </option>
+                            ))}
+                        </select>
+                        {betsTotalPages > 1 && (
+                            <div className="flex items-center gap-1">
+                                <button
+                                    type="button"
+                                    onClick={() => goToBetsPage(1)}
+                                    disabled={betsPage <= 1}
+                                    className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                    aria-label="First page"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => goToBetsPage(betsPage - 1)}
+                                    disabled={betsPage <= 1}
+                                    className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                    aria-label="Previous page"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                                    </svg>
+                                </button>
+                                <span className="min-w-[80px] px-3 py-1 text-center text-sm text-gray-600 dark:text-gray-400">
+                                    {betsPage} / {betsTotalPages}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => goToBetsPage(betsPage + 1)}
+                                    disabled={betsPage >= betsTotalPages}
+                                    className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                    aria-label="Next page"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => goToBetsPage(betsTotalPages)}
+                                    disabled={betsPage >= betsTotalPages}
+                                    className="rounded-lg p-2 text-gray-500 transition hover:bg-gray-100 hover:text-gray-700 disabled:opacity-40 disabled:hover:bg-transparent dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                    aria-label="Last page"
+                                >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+                                    </svg>
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* System Logs - same row as Latest Tips */}

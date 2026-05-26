@@ -28,17 +28,32 @@ export async function GET(request: NextRequest, context: { params: any }) {
 
     const url = new URL(request.url);
     const limit = Math.min(Math.max(Number(url.searchParams.get('limit') || '50'), 1), 500);
+    const pageParam = url.searchParams.get('page');
+    const page = pageParam != null ? Math.max(Number(pageParam) || 1, 1) : null;
     const includeSettlement = url.searchParams.get('includeSettlement') !== 'false';
 
-    const query = BetHistory.find({ botInstanceId: instanceId })
-      .sort({ createdAt: -1 })
-      .limit(limit);
+    const filter = { botInstanceId: instanceId };
+
+    const query = BetHistory.find(filter).sort({ createdAt: -1 });
 
     if (!includeSettlement) {
       query.select('-settlement.raw');
     }
 
-    const bets = await query.lean();
+    if (page != null) {
+      const skip = (page - 1) * limit;
+      const [bets, total] = await Promise.all([
+        query.clone().skip(skip).limit(limit).lean(),
+        BetHistory.countDocuments(filter),
+      ]);
+      const totalPages = Math.max(1, Math.ceil(total / limit));
+      return NextResponse.json({
+        bets,
+        pagination: { page, limit, total, totalPages },
+      });
+    }
+
+    const bets = await query.limit(limit).lean();
 
     return NextResponse.json(bets);
   } catch (error) {

@@ -604,7 +604,10 @@ export default function AdminInstancesPage() {
                         ) : detailTab === 'monitor' ? (
                             <>
                                 <div className="mb-6">
-                                    <RealTimeMonitor instanceId={selected._id} />
+                                    <RealTimeMonitor
+                                        instanceId={selected._id}
+                                        isInstanceRunning={selected.status === 'RUNNING'}
+                                    />
                                 </div>
                                 <div>
                                     <div className="mb-2 flex items-center justify-between">

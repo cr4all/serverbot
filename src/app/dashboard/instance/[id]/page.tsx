@@ -195,7 +195,7 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
                 }
             >
                 {tab === 'monitor' ? (
-                    <RealTimeMonitor instanceId={id} />
+                    <RealTimeMonitor instanceId={id} isInstanceRunning={isRunning} />
                 ) : (
                     <div className="p-5 sm:p-6">
                         <InstancePerformance instanceId={id} embedded />

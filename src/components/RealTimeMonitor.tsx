@@ -7,6 +7,8 @@ import he from 'he';
 
 interface RealTimeMonitorProps {
     instanceId: string;
+    /** When false, admin manual settlement button is disabled. */
+    isInstanceRunning?: boolean;
 }
 
 interface LogEntry {
@@ -287,7 +289,7 @@ function PlaceStatusIcon({ status }: { status: 'SUCCESS' | 'FAILED' }) {
     );
 }
 
-export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
+export default function RealTimeMonitor({ instanceId, isInstanceRunning = false }: RealTimeMonitorProps) {
     const { data: session } = useSession();
     const isAdmin = (session?.user as any)?.role === 'admin';
     const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -299,6 +301,8 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
     const [tips, setTips] = useState<TipEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
     const [currentBalance, setCurrentBalance] = useState(0); // Default simulated balance
+    const [settlementLoading, setSettlementLoading] = useState(false);
+    const [settlementFeedback, setSettlementFeedback] = useState<string | null>(null);
     const socketRef = useRef<Socket | null>(null);
     const betsPageRef = useRef(betsPage);
     const betsLimitRef = useRef(betsLimit);
@@ -438,6 +442,8 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                 }) as BetEntry
         );
 
+    const fetchBetsRef = useRef<(() => Promise<void>) | null>(null);
+
     // Poll DB for BetHistory for this instance
     useEffect(() => {
         let mounted = true;
@@ -468,14 +474,67 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             }
         };
 
+        fetchBetsRef.current = fetchBets;
         fetchBets();
         const poll = setInterval(fetchBets, 3000);
 
         return () => {
             mounted = false;
+            fetchBetsRef.current = null;
             clearInterval(poll);
         };
     }, [instanceId, betsPage, betsLimit]);
+
+    const triggerManualSettlement = async () => {
+        if (!isInstanceRunning || settlementLoading) return;
+        setSettlementLoading(true);
+        setSettlementFeedback(null);
+        try {
+            const res = await fetch(`/api/bot-instances/${instanceId}/settlement`, { method: 'POST' });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                const msg = data?.error || `Settlement failed (${res.status})`;
+                setSettlementFeedback(msg);
+                console.error('Manual settlement failed', msg);
+                return;
+            }
+            if (data.skipped && data.reason) {
+                const reasonLabels: Record<string, string> = {
+                    bot_not_loaded: 'Bot not loaded in mainbot',
+                    bot_not_running: 'Bot not running',
+                    settlement_not_supported: 'Settlement not supported for this bot',
+                    cannot_sync: 'Session busy (login or bet in progress)',
+                    no_pending: 'No pending bets to settle',
+                };
+                setSettlementFeedback(reasonLabels[data.reason] || `Skipped: ${data.reason}`);
+            } else if (data.error) {
+                setSettlementFeedback(data.error);
+            } else {
+                const updates = data.updates ?? 0;
+                const pending = data.pending ?? 0;
+                setSettlementFeedback(
+                    updates > 0
+                        ? `Settled ${updates} of ${pending} pending bet(s)`
+                        : pending > 0
+                          ? `Checked ${pending} bet(s), none settled yet`
+                          : 'No pending bets'
+                );
+                await fetchBetsRef.current?.();
+            }
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : 'Settlement request failed';
+            setSettlementFeedback(msg);
+            console.error('Manual settlement error', e);
+        } finally {
+            setSettlementLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (!settlementFeedback) return;
+        const t = setTimeout(() => setSettlementFeedback(null), 4000);
+        return () => clearTimeout(t);
+    }, [settlementFeedback]);
 
     const goToBetsPage = (p: number) => {
         setBetsPage(Math.min(Math.max(1, p), betsTotalPages));
@@ -542,7 +601,34 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             {/* Betting History - full width first row */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800 lg:col-span-2">
                 <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
+                    <div className="flex flex-wrap items-center gap-3">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
+                        {isAdmin && (
+                            <button
+                                type="button"
+                                onClick={() => triggerManualSettlement()}
+                                disabled={!isInstanceRunning || settlementLoading}
+                                title={
+                                    !isInstanceRunning
+                                        ? '인스턴스가 RUNNING일 때만 사용 가능'
+                                        : 'Fetch settlement results from the bookmaker'
+                                }
+                                className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"
+                            >
+                                {settlementLoading ? (
+                                    <>
+                                        <span className="h-3 w-3 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
+                                        Fetching Result…
+                                    </>
+                                ) : (
+                                    'Fetch Result'
+                                )}
+                            </button>
+                        )}
+                        {settlementFeedback && (
+                            <span className="text-xs text-gray-600 dark:text-gray-400">{settlementFeedback}</span>
+                        )}
+                    </div>
                     {betsTotal > 0 && (
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                             Showing {(betsPage - 1) * betsLimit + 1}–{Math.min(betsPage * betsLimit, betsTotal)} of {betsTotal}

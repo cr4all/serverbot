@@ -6,6 +6,7 @@ import Bot from '@/models/Bot'; // ensure model is registered
 import User from '@/models/User'; // ensure model is registered
 import BotInstance from '@/models/BotInstance';
 import BotAssignment from '@/models/BotAssignment';
+import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
 
 export async function GET(request: Request) {
     try {
@@ -48,10 +49,8 @@ export async function POST(request: Request) {
 
         await connectDB();
 
-        // Validate locale if provided
-        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
-        if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
-            return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
+        if (body?.config?.locale && !isValidLocale(body.config.locale)) {
+            return NextResponse.json({ error: allowedLocalesErrorMessage() }, { status: 400 });
         }
 
         // Validate that the requested botId is allowed for this user

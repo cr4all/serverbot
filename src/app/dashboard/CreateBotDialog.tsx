@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
+import { ALLOWED_LOCALES, DEFAULT_LOCALE, isValidLocale } from '@/lib/locales';
 import { IBotInstance } from '@/types';
 import MessageDialog from '@/components/MessageDialog';
 import TemplateStatsStrip from '@/components/TemplateStatsStrip';
@@ -47,7 +48,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         message: string;
         variant?: 'info' | 'warning' | 'danger' | 'success';
     }>({ open: false, title: '', message: '', variant: 'info' });
-    const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
     const [formData, setFormData] = useState({
         botId: '',
         name: '',
@@ -55,7 +55,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         config: {
             username: '',
             password: '',
-            locale: 'COMMON',
+            locale: DEFAULT_LOCALE,
             licenseKey: '',
             stake: '',
             // Proxy settings
@@ -79,7 +79,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config: {
                         username: initialData.config?.username || '',
                         password: initialData.config?.password || '',
-                        locale: initialData.config?.locale || 'COMMON',
+                        locale: initialData.config?.locale || DEFAULT_LOCALE,
                         licenseKey: initialData.config?.licenseKey || '',
                         stake: initialData.config?.stake != null ? String(initialData.config.stake) : '',
                         proxyType: initialData.config?.proxyType || '',
@@ -99,7 +99,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config: {
                         username: '',
                         password: '',
-                        locale: 'COMMON',
+                        locale: DEFAULT_LOCALE,
                         licenseKey: '',
                         stake: '',
                         proxyType: '',
@@ -118,7 +118,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config: {
                         username: '',
                         password: '',
-                        locale: 'COMMON',
+                        locale: DEFAULT_LOCALE,
                         licenseKey: '',
                         stake: '',
                         proxyType: '',
@@ -165,11 +165,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         setLoading(true);
 
         // Validate locale is allowed
-        if (!allowedLocales.includes(formData.config.locale)) {
+        if (!isValidLocale(formData.config.locale)) {
             setMessageDialog({
                 open: true,
                 title: 'Invalid locale',
-                message: `Locale must be one of: ${allowedLocales.join(', ')}`,
+                message: `Locale must be one of: ${ALLOWED_LOCALES.join(', ')}`,
                 variant: 'warning',
             });
             setLoading(false);
@@ -642,7 +642,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     onChange={handleChange}
                                     className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 >
-                                    {allowedLocales.map((loc) => (
+                                    {ALLOWED_LOCALES.map((loc) => (
                                         <option key={loc} value={loc}>
                                             {loc}
                                         </option>

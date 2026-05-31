@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
 import Bot from '@/models/Bot';
+import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
 
 export async function GET(
     request: Request,
@@ -57,10 +58,8 @@ export async function PATCH(
         const body = await request.json();
         await connectDB();
 
-        // Validate locale if being updated
-        const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
-        if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
-            return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
+        if (body?.config?.locale && !isValidLocale(body.config.locale)) {
+            return NextResponse.json({ error: allowedLocalesErrorMessage() }, { status: 400 });
         }
 
         // Ensure user owns the instance

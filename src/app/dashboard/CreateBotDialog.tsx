@@ -4,6 +4,12 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { IBotInstance } from '@/types';
 import MessageDialog from '@/components/MessageDialog';
+import {
+    ALLOWED_SPORTS,
+    IBotTemplateRef,
+    stripBookieAndTipFilterConfig,
+    templateUsesBookieConfig,
+} from '@/lib/botInstanceFilters';
 
 interface CreateBotDialogProps {
     isOpen: boolean;
@@ -16,6 +22,52 @@ interface CreateBotDialogProps {
 
 const STEP_SELECT_TEMPLATE = 1;
 const STEP_CONFIGURE_INSTANCE = 2;
+
+const ALLOWED_LOCALES = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND', 'BRAZIL'] as const;
+
+function defaultConfig(overrides?: Record<string, unknown>) {
+    return {
+        username: '',
+        password: '',
+        locale: 'COMMON',
+        licenseKey: '',
+        stake: '',
+        proxyType: '',
+        proxyHost: '',
+        proxyPort: '',
+        proxyUsername: '',
+        proxyPassword: '',
+        minEdge: '',
+        maxEdge: '',
+        minOdds: '',
+        maxOdds: '',
+        sports: [] as string[],
+        ...overrides,
+    };
+}
+
+function configFromInstance(initialData: IBotInstance) {
+    const c = initialData.config ?? {};
+    return {
+        ...defaultConfig(),
+        ...c,
+        username: c.username || '',
+        password: c.password || '',
+        locale: c.locale || 'COMMON',
+        licenseKey: c.licenseKey || '',
+        stake: c.stake != null ? String(c.stake) : '',
+        proxyType: c.proxyType || '',
+        proxyHost: c.proxyHost || '',
+        proxyPort: c.proxyPort != null ? String(c.proxyPort) : '',
+        proxyUsername: c.proxyUsername || '',
+        proxyPassword: c.proxyPassword || '',
+        minEdge: c.minEdge != null ? String(c.minEdge) : '',
+        maxEdge: c.maxEdge != null ? String(c.maxEdge) : '',
+        minOdds: c.minOdds != null ? String(c.minOdds) : '',
+        maxOdds: c.maxOdds != null ? String(c.maxOdds) : '',
+        sports: Array.isArray(c.sports) ? c.sports : [],
+    };
+}
 
 function resolveBotTier(
     templates: { _id: unknown; botTier?: string }[],
@@ -46,24 +98,12 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         message: string;
         variant?: 'info' | 'warning' | 'danger' | 'success';
     }>({ open: false, title: '', message: '', variant: 'info' });
-    const allowedLocales = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND'];
+    const allowedLocales = [...ALLOWED_LOCALES];
     const [formData, setFormData] = useState({
         botId: '',
         name: '',
         lastBalance: 0,
-        config: {
-            username: '',
-            password: '',
-            locale: 'COMMON',
-            licenseKey: '',
-            stake: '',
-            // Proxy settings
-            proxyType: '',
-            proxyHost: '',
-            proxyPort: '',
-            proxyUsername: '',
-            proxyPassword: '',
-        },
+        config: defaultConfig(),
     });
 
     useEffect(() => {
@@ -75,19 +115,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     botId: (initialData.botId as any)?._id || (initialData.botId as string),
                     name: initialData.name,
                     lastBalance: initialData.lastBalance,
-                    config: {
-                        username: initialData.config?.username || '',
-                        password: initialData.config?.password || '',
-                        locale: initialData.config?.locale || 'COMMON',
-                        licenseKey: initialData.config?.licenseKey || '',
-                        stake: initialData.config?.stake != null ? String(initialData.config.stake) : '',
-                        proxyType: initialData.config?.proxyType || '',
-                        proxyHost: initialData.config?.proxyHost || '',
-                        proxyPort: initialData.config?.proxyPort || '',
-                        proxyUsername: initialData.config?.proxyUsername || '',
-                        proxyPassword: initialData.config?.proxyPassword || '',
-                        ...initialData.config,
-                    },
+                    config: configFromInstance(initialData),
                 });
             } else if (preselectedBotId) {
                 setStep(STEP_CONFIGURE_INSTANCE);
@@ -95,18 +123,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     botId: preselectedBotId,
                     name: '',
                     lastBalance: 0,
-                    config: {
-                        username: '',
-                        password: '',
-                        locale: 'COMMON',
-                        licenseKey: '',
-                        stake: '',
-                        proxyType: '',
-                        proxyHost: '',
-                        proxyPort: '',
-                        proxyUsername: '',
-                        proxyPassword: '',
-                    },
+                    config: defaultConfig(),
                 });
             } else {
                 setStep(STEP_SELECT_TEMPLATE);
@@ -114,18 +131,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     botId: '',
                     name: '',
                     lastBalance: 0,
-                    config: {
-                        username: '',
-                        password: '',
-                        locale: 'COMMON',
-                        licenseKey: '',
-                        stake: '',
-                        proxyType: '',
-                        proxyHost: '',
-                        proxyPort: '',
-                        proxyUsername: '',
-                        proxyPassword: '',
-                    },
+                    config: defaultConfig(),
                 });
             }
         }
@@ -159,12 +165,45 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         }
     };
 
+    const toggleSport = (sport: string) => {
+        setFormData((prev) => {
+            const current = prev.config.sports ?? [];
+            const sports = current.includes(sport)
+                ? current.filter((s) => s !== sport)
+                : [...current, sport];
+            return { ...prev, config: { ...prev.config, sports } };
+        });
+    };
+
+    const selectAllSports = () => {
+        setFormData((prev) => ({
+            ...prev,
+            config: { ...prev.config, sports: [...ALLOWED_SPORTS] },
+        }));
+    };
+
+    const clearSports = () => {
+        setFormData((prev) => ({
+            ...prev,
+            config: { ...prev.config, sports: [] },
+        }));
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
 
-        // Validate locale is allowed
-        if (!allowedLocales.includes(formData.config.locale)) {
+        const submitTemplate =
+            templates.find((t) => String(t._id) === String(formData.botId)) ??
+            (initialData?.botId && typeof initialData.botId === 'object'
+                ? (initialData.botId as IBotTemplateRef)
+                : undefined);
+        const usesBookieConfigOnSubmit = templateUsesBookieConfig(submitTemplate);
+
+        if (
+            usesBookieConfigOnSubmit &&
+            !allowedLocales.includes(formData.config.locale as (typeof ALLOWED_LOCALES)[number])
+        ) {
             setMessageDialog({
                 open: true,
                 title: 'Invalid locale',
@@ -199,7 +238,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
             const method = initialData ? 'PATCH' : 'POST';
 
-            const selectedTemplate = templates.find((t) => String(t._id) === String(formData.botId));
+            const selectedTemplate = submitTemplate;
             const configParams = selectedTemplate?.configParams ?? [];
             const config: Record<string, unknown> = { ...formData.config };
             if (resolveBotTier(templates, formData.botId, initialData) === 'free') {
@@ -210,12 +249,29 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 delete config.proxyUsername;
                 delete config.proxyPassword;
             }
-            // Ensure stake is sent as number (integer or float)
-            const rawStake = config.stake;
-            if (rawStake !== '' && rawStake !== undefined && rawStake !== null) {
-                config.stake = Number(rawStake);
+            if (!usesBookieConfigOnSubmit) {
+                stripBookieAndTipFilterConfig(config);
             } else {
-                delete config.stake;
+                const rawStake = config.stake;
+                if (rawStake !== '' && rawStake !== undefined && rawStake !== null) {
+                    config.stake = Number(rawStake);
+                } else {
+                    delete config.stake;
+                }
+                for (const key of ['minEdge', 'maxEdge', 'minOdds', 'maxOdds'] as const) {
+                    const raw = config[key];
+                    if (raw !== '' && raw !== undefined && raw !== null) {
+                        config[key] = Number(raw);
+                    } else {
+                        delete config[key];
+                    }
+                }
+                const sports = config.sports;
+                if (Array.isArray(sports) && sports.length > 0) {
+                    config.sports = sports;
+                } else {
+                    delete config.sports;
+                }
             }
             for (const p of configParams) {
                 const raw = config[p.paramName];
@@ -269,7 +325,10 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
 
     if (!isOpen) return null;
 
-    const selectedTemplate = templates.find((t) => String(t._id) === String(formData.botId));
+    const selectedTemplate =
+        templates.find((t) => String(t._id) === String(formData.botId)) ??
+        (initialData?.botId && typeof initialData.botId === 'object' ? (initialData.botId as IBotTemplateRef & { _id?: unknown }) : undefined);
+    const usesBookieConfig = templateUsesBookieConfig(selectedTemplate);
     const isFreeTier = resolveBotTier(templates, formData.botId, initialData) === 'free';
     const isCreateFlow = !initialData;
     const isAdmin = (session?.user as any)?.role === 'admin';
@@ -614,6 +673,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         </div>
                     )}
 
+                    {usesBookieConfig && (
                     <div className="border-t border-gray-200 pt-4 dark:border-gray-700">
                         <h3 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Configuration</h3>
 
@@ -679,6 +739,104 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     onChange={handleChange}
                                     className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                 />
+                            </div>
+
+                            <div className="sm:col-span-2 border-t border-gray-100 pt-4 dark:border-gray-700">
+                                <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-200">Betting Filters</h4>
+                                <p className="mb-3 text-xs text-gray-500 dark:text-gray-400">
+                                    Leave fields empty to allow all. Sports: none selected = all sports allowed.
+                                </p>
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Min Edge (%)</label>
+                                        <input
+                                            type="number"
+                                            name="minEdge"
+                                            step="0.1"
+                                            min="0"
+                                            placeholder="e.g. 3"
+                                            value={formData.config.minEdge}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Max Edge (%)</label>
+                                        <input
+                                            type="number"
+                                            name="maxEdge"
+                                            step="0.1"
+                                            min="0"
+                                            placeholder="optional"
+                                            value={formData.config.maxEdge}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Min Odds</label>
+                                        <input
+                                            type="number"
+                                            name="minOdds"
+                                            step="0.01"
+                                            min="1"
+                                            placeholder="e.g. 1.50"
+                                            value={formData.config.minOdds}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Max Odds</label>
+                                        <input
+                                            type="number"
+                                            name="maxOdds"
+                                            step="0.01"
+                                            min="1"
+                                            placeholder="e.g. 4.00"
+                                            value={formData.config.maxOdds}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                    </div>
+                                    <div className="sm:col-span-2">
+                                        <div className="mb-2 flex items-center justify-between">
+                                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Sports</label>
+                                            <div className="flex gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={selectAllSports}
+                                                    className="text-xs text-blue-600 hover:underline dark:text-blue-400"
+                                                >
+                                                    Select All
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={clearSports}
+                                                    className="text-xs text-gray-500 hover:underline dark:text-gray-400"
+                                                >
+                                                    Clear All
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                                            {ALLOWED_SPORTS.map((sport) => (
+                                                <label
+                                                    key={sport}
+                                                    className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-200 px-2 py-1.5 text-sm dark:border-gray-600"
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={(formData.config.sports ?? []).includes(sport)}
+                                                        onChange={() => toggleSport(sport)}
+                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600"
+                                                    />
+                                                    <span className="text-gray-700 dark:text-gray-300">{sport}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
                             {!isFreeTier && (
@@ -756,6 +914,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                             )}
                         </div>
                     </div>
+                    )}
                         </div>
                     </div>
 

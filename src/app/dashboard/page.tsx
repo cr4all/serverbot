@@ -8,6 +8,7 @@ import { io, Socket } from 'socket.io-client';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
 import MessageDialog from '@/components/MessageDialog';
+import { formatFilterSummary, templateSupportsTipFilters } from '@/lib/botInstanceFilters';
 
 interface LogEntry {
     timestamp: string;
@@ -249,6 +250,12 @@ function BotCard({
         }
     };
 
+    const filterSummary = formatFilterSummary(instance.config ?? {});
+    const showFilterSummary =
+        templateSupportsTipFilters(
+            instance.botId && typeof instance.botId === 'object' ? (instance.botId as { type?: string; subtype?: number }) : null
+        ) && filterSummary;
+
     return (
         <div className="overflow-hidden rounded-lg bg-white shadow transition hover:shadow-md dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
             <div className="p-6">
@@ -292,6 +299,11 @@ function BotCard({
                     <p className="text-sm text-gray-500 dark:text-gray-400">
                         Status: <span className={`font-medium ${isRunning ? 'text-green-600' : 'text-red-600'}`}>{instance.status}</span>
                     </p>
+                    {showFilterSummary && (
+                        <p className="text-xs text-gray-500 dark:text-gray-400" title={filterSummary!}>
+                            Filters: <span className="font-medium text-gray-700 dark:text-gray-300">{filterSummary}</span>
+                        </p>
+                    )}
                 </div>
                 {/* Recent logs (2–3) */}
                 <div className="mt-3 min-h-[4.5rem] rounded border border-gray-200 bg-gray-50 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-700/50">

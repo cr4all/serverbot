@@ -45,7 +45,15 @@ export interface IBot {
 
 // Bot Instance Types
 export type BotStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'STOPPING';
-export type Locale = 'COMMON' | 'SPAIN' | 'ITALY' | 'AUSTRALIA' | 'FINLAND';
+export type Locale = 'COMMON' | 'SPAIN' | 'ITALY' | 'AUSTRALIA' | 'FINLAND' | 'BRAZIL';
+
+export interface IBotInstanceFilters {
+    minEdge?: number;
+    maxEdge?: number;
+    minOdds?: number;
+    maxOdds?: number;
+    sports?: string[];
+}
 
 export interface IBotInstance {
     _id: string | Types.ObjectId;
@@ -53,7 +61,7 @@ export interface IBotInstance {
     userId: string | Types.ObjectId | IUser;
     name: string;
     lastBalance: number;
-    config: Record<string, any> & { locale?: Locale };
+    config: Record<string, any> & IBotInstanceFilters & { locale?: Locale };
     status: BotStatus;
     lastHeartbeat?: Date;
     createdAt: Date;

@@ -255,6 +255,12 @@ interface TipEntry {
 
 const BET_PAGE_SIZES = [10, 25, 50] as const;
 
+function formatBetAmount(value: number | null | undefined): string {
+    const n = Number(value);
+    if (!Number.isFinite(n)) return '—';
+    return n.toFixed(2);
+}
+
 function PlaceStatusIcon({ status }: { status: 'SUCCESS' | 'FAILED' }) {
     const isSuccess = status === 'SUCCESS';
     const label = isSuccess ? 'Success' : 'Failed';
@@ -695,8 +701,8 @@ export default function RealTimeMonitor({ instanceId, isInstanceRunning = false 
                                     <td className="px-3 py-2">
                                         <div className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-sm">{decodeTipMessage(bet.tip || bet.tip_id || '')}</div>
                                     </td>
-                                    <td className={`px-3 py-2 font-medium text-gray-700 dark:text-gray-200`}>{bet.stake}</td>
-                                    <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{bet.balance != null ? `$${Number(bet.balance).toFixed(2)}` : '—'}</td>
+                                    <td className={`px-3 py-2 font-medium text-gray-700 dark:text-gray-200`}>{formatBetAmount(bet.stake)}</td>
+                                    <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{bet.balance != null ? `$${formatBetAmount(bet.balance)}` : '—'}</td>
                                     <td className={`px-3 py-2 font-medium ${bet.failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>{bet.failedCount}</td>
                                     {isAdmin && (
                                         <td className="px-3 py-2 text-right">

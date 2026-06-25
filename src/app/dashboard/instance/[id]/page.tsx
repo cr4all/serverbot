@@ -8,6 +8,8 @@ import { use } from 'react';
 import RealTimeMonitor from '@/components/RealTimeMonitor';
 import { IBotInstance } from '@/types';
 
+const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
+
 // In Next.js 15+, dynamic route params are Promises.
 // We can use React.use() to unwrap them if needed, or just standard async/await in a Server Component.
 // Since this is a Client Component (needs hooks), we receive params as a Promise prop in recent versions or just params object in older.
@@ -22,6 +24,8 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
     const router = useRouter();
     const [instance, setInstance] = useState<IBotInstance | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+    const [balanceError, setBalanceError] = useState<string | null>(null);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -61,6 +65,44 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
         }
     };
 
+    const fetchBalanceFromServer = async () => {
+        if (instance?.status !== 'RUNNING') {
+            setBalanceError('Balance can only be fetched while the bot is running.');
+            return;
+        }
+        setBalanceError(null);
+        setIsLoadingBalance(true);
+        try {
+            const res = await fetch(`${SOCKET_URL}/bot/balance/${id}`);
+            if (!res.ok) {
+                const errText = await res.text().catch(() => '');
+                setBalanceError(errText || 'Failed to fetch balance.');
+                return;
+            }
+            const data = await res.json();
+            const balance = data?.balance;
+            if (typeof balance !== 'number') {
+                setBalanceError('Invalid balance value received from server.');
+                return;
+            }
+            const patchRes = await fetch(`/api/bot-instances/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ lastBalance: balance }),
+            });
+            if (!patchRes.ok) {
+                setBalanceError('Failed to save balance.');
+                return;
+            }
+            fetchInstance();
+        } catch (e) {
+            console.error(e);
+            setBalanceError('Failed to fetch balance.');
+        } finally {
+            setIsLoadingBalance(false);
+        }
+    };
+
     if (status === 'loading' || loading) return <div className="p-8 text-center">Loading Monitor...</div>;
     if (!session || !instance) return null;
 
@@ -77,14 +119,29 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
                             <p className="mt-1 text-sm text-gray-500">
                                 ID: {id} | Type: {(instance.botId as any)?.name}
                             </p>
-                            <div className="mt-2 flex gap-4 text-sm text-gray-600 dark:text-gray-300">
+                            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 dark:text-gray-300">
                                 {instance.config?.username && (
                                     <span>User: <strong className="text-gray-900 dark:text-white">{instance.config.username}</strong></span>
                                 )}
-                                {instance.config?.balance && (
-                                    <span>Balance: <strong className="text-gray-900 dark:text-white">${instance.config.balance}</strong></span>
-                                )}
+                                <span className="inline-flex flex-wrap items-center gap-2">
+                                    Balance:{' '}
+                                    <strong className="text-gray-900 dark:text-white">
+                                        ${typeof instance.lastBalance === 'number' ? instance.lastBalance.toFixed(2) : '0.00'}
+                                    </strong>
+                                    <button
+                                        type="button"
+                                        onClick={fetchBalanceFromServer}
+                                        disabled={isLoadingBalance || instance.status !== 'RUNNING'}
+                                        title={instance.status === 'RUNNING' ? 'Refresh balance from server' : 'Start the bot to fetch balance'}
+                                        className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
+                                    >
+                                        {isLoadingBalance ? 'Loading…' : 'Balance'}
+                                    </button>
+                                </span>
                             </div>
+                            {balanceError && (
+                                <p className="mt-1 text-xs text-red-600 dark:text-red-400">{balanceError}</p>
+                            )}
                         </div>
                         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:gap-4">
                             <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-sm font-medium ${instance.status === 'RUNNING'
@@ -113,7 +170,7 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
             </header>
 
             <main className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-                <RealTimeMonitor instanceId={id} />
+                <RealTimeMonitor instanceId={id} onBalanceUpdated={fetchInstance} />
             </main>
         </div>
     );

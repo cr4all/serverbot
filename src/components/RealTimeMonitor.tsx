@@ -7,6 +7,7 @@ import he from 'he';
 
 interface RealTimeMonitorProps {
     instanceId: string;
+    onBalanceUpdated?: () => void;
 }
 
 interface LogEntry {
@@ -35,14 +36,15 @@ interface TipEntry {
     source: string;
 }
 
-export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
+export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTimeMonitorProps) {
     const { data: session } = useSession();
     const isAdmin = (session?.user as any)?.role === 'admin';
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [bets, setBets] = useState<BetEntry[]>([]);
     const [tips, setTips] = useState<TipEntry[]>([]);
     const [isConnected, setIsConnected] = useState(false);
-    const [currentBalance, setCurrentBalance] = useState(0); // Default simulated balance
+    const [currentBalance, setCurrentBalance] = useState(0);
+    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const socketRef = useRef<Socket | null>(null);
     // Use client-exposed env var. NEXT_PUBLIC_* vars are inlined into browser bundles.
     // Keep fallback to server-only BOTMANAGER_URL and localhost for safety.
@@ -50,6 +52,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
 
     // Function to fetch the current balance from the server
     const fetchBalance = async (signal?: AbortSignal) => {
+        setIsLoadingBalance(true);
         try {
             const res = await fetch(`${SOCKET_URL}/bot/balance/${instanceId}`, { signal });
             if (!res.ok) {
@@ -59,10 +62,22 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
             const data = await res.json();
             if (data && typeof data.balance === 'number') {
                 setCurrentBalance(data.balance);
+                try {
+                    await fetch(`/api/bot-instances/${instanceId}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ lastBalance: data.balance }),
+                    });
+                    onBalanceUpdated?.();
+                } catch (e) {
+                    console.error('Failed to save balance', e);
+                }
             }
         } catch (e) {
             if ((e as any).name === 'AbortError') return;
             console.error('Failed to fetch balance', e);
+        } finally {
+            setIsLoadingBalance(false);
         }
     };
 
@@ -81,7 +96,7 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
         socketRef.current.on('connect', () => {
             setIsConnected(true);
             console.log('Connected to WebSocket');
-            socketRef.current?.send(JSON.stringify({ subscribe: instanceId }));
+            socketRef.current?.emit('subscribe', instanceId);
         });
 
         socketRef.current.on('disconnect', () => {
@@ -277,10 +292,11 @@ export default function RealTimeMonitor({ instanceId }: RealTimeMonitorProps) {
                         </div>
                         <button
                             onClick={() => fetchBalance()}
-                            aria-label="Refresh balance"
-                            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
+                            disabled={isLoadingBalance}
+                            aria-label="Balance"
+                            className="inline-flex items-center rounded-md border border-gray-200 bg-white px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700"
                         >
-                            Refresh
+                            {isLoadingBalance ? 'Loading…' : 'Balance'}
                         </button>
                         <span className={`inline-flex h-2 w-2 rounded-full ${isConnected ? 'bg-green-500' : 'bg-yellow-500'}`} title={isConnected ? 'Connected' : 'Simulating/Connecting'} />
                     </div>

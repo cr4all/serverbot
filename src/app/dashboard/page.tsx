@@ -161,7 +161,7 @@ function BotCard({
         });
 
         socketRef.current.on('connect', () => {
-            socketRef.current?.send(JSON.stringify({ subscribe: instanceId }));
+            socketRef.current?.emit('subscribe', instanceId);
         });
 
         socketRef.current.on('log', (data: LogEntry) => {
@@ -177,18 +177,23 @@ function BotCard({
     }, [instanceId]);
 
     const fetchBalanceFromServer = async () => {
+        if (instance.status !== 'RUNNING') {
+            setBalanceError('Balance can only be fetched while the bot is running.');
+            return;
+        }
         setBalanceError(null);
         setIsLoadingBalance(true);
         try {
             const res = await fetch(`${SOCKET_URL}/bot/balance/${instanceId}`);
             if (!res.ok) {
-                setBalanceError('Failed to fetch balance');
+                const errText = await res.text().catch(() => '');
+                setBalanceError(errText || 'Failed to fetch balance.');
                 return;
             }
             const data = await res.json();
             const balance = data?.balance;
             if (typeof balance !== 'number') {
-                setBalanceError('Invalid balance from server');
+                setBalanceError('Invalid balance value received from server.');
                 return;
             }
             const patchRes = await fetch(`/api/bot-instances/${instance._id}`, {
@@ -197,13 +202,13 @@ function BotCard({
                 body: JSON.stringify({ lastBalance: balance }),
             });
             if (!patchRes.ok) {
-                setBalanceError('Failed to save balance');
+                setBalanceError('Failed to save balance.');
                 return;
             }
             refresh();
         } catch (e) {
             console.error(e);
-            setBalanceError('Failed to fetch balance');
+            setBalanceError('Failed to fetch balance.');
         } finally {
             setIsLoadingBalance(false);
         }
@@ -227,6 +232,9 @@ function BotCard({
                 return;
             }
             refresh();
+            if (newStatus === 'RUNNING') {
+                setTimeout(() => fetchBalanceFromServer(), 4000);
+            }
         } catch (e) {
             console.error(e);
             onMessage({
@@ -281,16 +289,22 @@ function BotCard({
                             Username: <span className="font-medium text-gray-900 dark:text-white">{instance.config.username}</span>
                         </p>
                     )}
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Balance: <span className="font-medium text-gray-900 dark:text-white">${instance.lastBalance ?? 0}</span>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 flex flex-wrap items-center gap-x-1 gap-y-1">
+                        <span>
+                            Balance:{' '}
+                            <span className="font-medium text-gray-900 dark:text-white">
+                                ${typeof instance.lastBalance === 'number' ? instance.lastBalance.toFixed(2) : '0.00'}
+                            </span>
+                        </span>
                         <button
                             type="button"
                             onClick={fetchBalanceFromServer}
-                            disabled={isLoadingBalance}
-                            className="ml-2 rounded-md border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
-                            aria-label="Update balance from server"
+                            disabled={isLoadingBalance || !isRunning}
+                            title={isRunning ? 'Refresh balance from server' : 'Start the bot to fetch balance'}
+                            className="rounded-md border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
+                            aria-label="Balance"
                         >
-                            {isLoadingBalance ? 'Updating…' : 'Update'}
+                            {isLoadingBalance ? 'Loading…' : 'Balance'}
                         </button>
                     </p>
                     {balanceError && (

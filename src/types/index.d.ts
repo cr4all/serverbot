@@ -48,21 +48,13 @@ export type BotStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'STOPPING
 import type { Locale } from '@/lib/locales';
 export type { Locale };
 
-export interface IBotInstanceFilters {
-    minEdge?: number;
-    maxEdge?: number;
-    minOdds?: number;
-    maxOdds?: number;
-    sports?: string[];
-}
-
 export interface IBotInstance {
     _id: string | Types.ObjectId;
     botId: string | Types.ObjectId | IBot;
     userId: string | Types.ObjectId | IUser;
     name: string;
     lastBalance: number;
-    config: Record<string, any> & IBotInstanceFilters & { locale?: Locale };
+    config: Record<string, any> & { locale?: Locale };
     status: BotStatus;
     lastHeartbeat?: Date;
     createdAt: Date;

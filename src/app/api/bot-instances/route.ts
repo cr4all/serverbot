@@ -7,7 +7,6 @@ import User from '@/models/User'; // ensure model is registered
 import BotInstance from '@/models/BotInstance';
 import BotAssignment from '@/models/BotAssignment';
 import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
-import { normalizeFilterConfig, validateFilterConfig } from '@/lib/botInstanceFilters';
 
 export async function GET(request: Request) {
     try {
@@ -83,14 +82,6 @@ export async function POST(request: Request) {
             const bot = await Bot.findById(body.botId).select('botTier').lean();
             if ((bot as { botTier?: string } | null)?.botTier === 'free') {
                 delete body.config.licenseKey;
-            }
-        }
-
-        if (body?.config && typeof body.config === 'object') {
-            body.config = normalizeFilterConfig(body.config);
-            const filterCheck = validateFilterConfig(body.config);
-            if (!filterCheck.ok) {
-                return NextResponse.json({ error: filterCheck.error }, { status: 400 });
             }
         }
 

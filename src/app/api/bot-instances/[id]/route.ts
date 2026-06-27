@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
 import Bot from '@/models/Bot';
 import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
+import { normalizeFilterConfig, validateFilterConfig } from '@/lib/botInstanceFilters';
 
 export async function GET(
     request: Request,
@@ -89,6 +90,11 @@ export async function PATCH(
             const tier = (existingForTier?.botId as { botTier?: string } | null)?.botTier;
             if (tier === 'free') {
                 delete body.config.licenseKey;
+            }
+            body.config = normalizeFilterConfig(body.config);
+            const filterCheck = validateFilterConfig(body.config);
+            if (!filterCheck.ok) {
+                return NextResponse.json({ error: filterCheck.error }, { status: 400 });
             }
         }
 

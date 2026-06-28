@@ -52,7 +52,7 @@ export function stripBookieAndTipFilterConfig(config: Record<string, unknown>): 
     }
 }
 
-const FILTER_NUMBER_KEYS = ['minEdge', 'maxEdge', 'minOdds', 'maxOdds'] as const;
+const FILTER_NUMBER_KEYS = ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries'] as const;
 const ALLOWED_SPORT_SET = new Set<string>(ALLOWED_SPORTS);
 
 function parseOptionalNumber(value: unknown): number | undefined {
@@ -127,6 +127,13 @@ export function validateFilterConfig(
         return { ok: false, error: 'maxOdds must be >= minOdds' };
     }
 
+    const liveWaitRetries = config.liveWaitRetries as number | undefined;
+    if (liveWaitRetries !== undefined) {
+        if (!Number.isInteger(liveWaitRetries) || liveWaitRetries < 1) {
+            return { ok: false, error: 'liveWaitRetries must be an integer >= 1' };
+        }
+    }
+
     if (config.sports !== undefined) {
         if (!Array.isArray(config.sports)) {
             return { ok: false, error: 'sports must be an array' };
@@ -164,6 +171,11 @@ export function formatFilterSummary(config: Record<string, unknown>): string | n
         parts.push(`Odds ≤${maxOdds}`);
     }
 
+    const liveWaitRetries = config.liveWaitRetries as number | undefined;
+    if (liveWaitRetries !== undefined) {
+        parts.push(`Live wait ×${liveWaitRetries}`);
+    }
+
     const sports = config.sports as string[] | undefined;
     if (sports?.length) {
         parts.push(sports.join(', '));
@@ -174,7 +186,15 @@ export function formatFilterSummary(config: Record<string, unknown>): string | n
 
 /** Map tip fields (percent, odds, sport) to instance filter config. Used at runtime in mainbot. */
 export function getTipFilterSkipReason(
-    tip: { percent?: number; edge?: number; odds?: unknown; sport?: string; opbookmaker?: string; payload?: { kind?: string } },
+    tip: {
+        percent?: number;
+        edge?: number;
+        odds?: unknown;
+        sport?: string;
+        isLive?: boolean;
+        opbookmaker?: string;
+        payload?: { kind?: string };
+    },
     config: Record<string, unknown>
 ): string | null {
     const hasEdgeFilter = config.minEdge != null || config.maxEdge != null;
@@ -224,7 +244,7 @@ export function getTipFilterSkipReason(
         }
         const minOdds = config.minOdds as number | undefined;
         const maxOdds = config.maxOdds as number | undefined;
-        if (minOdds != null && odds < minOdds) {
+        if (minOdds != null && odds < minOdds && tip?.isLive !== true) {
             return `Tip skipped: odds ${odds} < minOdds ${minOdds}`;
         }
         if (maxOdds != null && odds > maxOdds) {

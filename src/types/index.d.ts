@@ -45,13 +45,16 @@ export interface IBot {
 
 // Bot Instance Types
 export type BotStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'STOPPING';
-export type Locale = 'COMMON' | 'SPAIN' | 'ITALY' | 'AUSTRALIA' | 'FINLAND' | 'BRAZIL';
+export type Locale = 'COMMON' | 'UNITED_KINGDOM' | 'SPAIN' | 'ITALY' | 'GREECE' | 'AUSTRALIA' | 'FINLAND' | 'BRAZIL';
+export type BotInstanceBotType = 'copybot' | 'valuebot' | 'tipsterbot';
 
 export interface IBotInstanceFilters {
     minEdge?: number;
     maxEdge?: number;
     minOdds?: number;
     maxOdds?: number;
+    /** Live valuebet leg/odds poll attempts before giving up (Bet365). */
+    liveWaitRetries?: number;
     sports?: string[];
 }
 
@@ -61,7 +64,7 @@ export interface IBotInstance {
     userId: string | Types.ObjectId | IUser;
     name: string;
     lastBalance: number;
-    config: Record<string, any> & IBotInstanceFilters & { locale?: Locale };
+    config: Record<string, any> & IBotInstanceFilters & { locale?: Locale; BOTTYPE?: BotInstanceBotType };
     status: BotStatus;
     lastHeartbeat?: Date;
     createdAt: Date;

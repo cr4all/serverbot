@@ -23,7 +23,7 @@ interface CreateBotDialogProps {
 const STEP_SELECT_TEMPLATE = 1;
 const STEP_CONFIGURE_INSTANCE = 2;
 
-const ALLOWED_LOCALES = ['COMMON', 'SPAIN', 'ITALY', 'AUSTRALIA', 'FINLAND', 'BRAZIL'] as const;
+const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'] as const;
 
 function defaultConfig(overrides?: Record<string, unknown>) {
     return {
@@ -41,6 +41,7 @@ function defaultConfig(overrides?: Record<string, unknown>) {
         maxEdge: '',
         minOdds: '',
         maxOdds: '',
+        liveWaitRetries: '',
         sports: [] as string[],
         ...overrides,
     };
@@ -65,6 +66,7 @@ function configFromInstance(initialData: IBotInstance) {
         maxEdge: c.maxEdge != null ? String(c.maxEdge) : '',
         minOdds: c.minOdds != null ? String(c.minOdds) : '',
         maxOdds: c.maxOdds != null ? String(c.maxOdds) : '',
+        liveWaitRetries: c.liveWaitRetries != null ? String(c.liveWaitRetries) : '',
         sports: Array.isArray(c.sports) ? c.sports : [],
     };
 }
@@ -258,7 +260,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 } else {
                     delete config.stake;
                 }
-                for (const key of ['minEdge', 'maxEdge', 'minOdds', 'maxOdds'] as const) {
+                for (const key of ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries'] as const) {
                     const raw = config[key];
                     if (raw !== '' && raw !== undefined && raw !== null) {
                         config[key] = Number(raw);
@@ -421,7 +423,14 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                     });
                                                     return;
                                                 }
-                                                setFormData((prev) => ({ ...prev, botId: t._id }));
+                                                setFormData((prev) => ({
+                                                    ...prev,
+                                                    botId: t._id,
+                                                    config: {
+                                                        ...defaultConfig(),
+                                                        ...(t.defaultConfig ?? {}),
+                                                    },
+                                                }));
                                             }}
                                             disabled={isBlockedForUser}
                                             className={`relative w-full rounded-xl border-2 p-4 text-left transition focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 ${
@@ -798,6 +807,22 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                             onChange={handleChange}
                                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Live Wait Retries</label>
+                                        <input
+                                            type="number"
+                                            name="liveWaitRetries"
+                                            step="1"
+                                            min="1"
+                                            placeholder="default 60"
+                                            value={formData.config.liveWaitRetries}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Bet365 live: min-odds / line-change poll attempts (empty = 60).
+                                        </p>
                                     </div>
                                     <div className="sm:col-span-2">
                                         <div className="mb-2 flex items-center justify-between">

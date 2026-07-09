@@ -101,12 +101,24 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         variant?: 'info' | 'warning' | 'danger' | 'success';
     }>({ open: false, title: '', message: '', variant: 'info' });
     const allowedLocales = [...ALLOWED_LOCALES];
+    const [allowedSports, setAllowedSports] = useState<string[]>([...ALLOWED_SPORTS]);
     const [formData, setFormData] = useState({
         botId: '',
         name: '',
         lastBalance: 0,
         config: defaultConfig(),
     });
+
+    useEffect(() => {
+        fetch('/api/config/allowed-sports')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (Array.isArray(data?.sports) && data.sports.length > 0) {
+                    setAllowedSports(data.sports.map(String));
+                }
+            })
+            .catch(() => {});
+    }, []);
 
     useEffect(() => {
         if (isOpen) {
@@ -180,7 +192,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const selectAllSports = () => {
         setFormData((prev) => ({
             ...prev,
-            config: { ...prev.config, sports: [...ALLOWED_SPORTS] },
+            config: { ...prev.config, sports: [...allowedSports] },
         }));
     };
 
@@ -845,7 +857,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                             </div>
                                         </div>
                                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                            {ALLOWED_SPORTS.map((sport) => (
+                                            {allowedSports.map((sport) => (
                                                 <label
                                                     key={sport}
                                                     className="flex cursor-pointer items-center gap-2 rounded-md border border-gray-200 px-2 py-1.5 text-sm dark:border-gray-600"

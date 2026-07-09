@@ -5,6 +5,7 @@ export const ALLOWED_SPORTS = [
     'Table Tennis',
     'Hockey',
     'Baseball',
+    'Props',
     'Volleyball',
     'Handball',
     'Cricket',
@@ -54,6 +55,72 @@ export function stripBookieAndTipFilterConfig(config: Record<string, unknown>): 
 
 const FILTER_NUMBER_KEYS = ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries'] as const;
 const ALLOWED_SPORT_SET = new Set<string>(ALLOWED_SPORTS);
+
+function normalizeSportName(value: unknown): string {
+    return String(value ?? '').trim().toLowerCase();
+}
+
+function isPlayerPropTip(tip: {
+    sport?: string;
+    period?: string;
+    extra?: string;
+}): boolean {
+    const period = normalizeSportName(tip?.period);
+    if (period === 'player props') return true;
+
+    const sport = normalizeSportName(tip?.sport);
+    if (sport !== 'baseball') return false;
+
+    const extra = String(tip?.extra ?? '');
+    if (!extra.includes('|')) return false;
+    const parts = extra.split('|').map((p) => p.trim());
+    if (parts.length < 2) return false;
+
+    const label = parts[1].toLowerCase();
+    const propKeywords = [
+        'total bases',
+        'single',
+        'strikeout',
+        'pitcher out',
+        'hits allowed',
+        'home run',
+    ];
+    return propKeywords.some((k) => label.includes(k));
+}
+
+function sportMatchesAllowed(
+    allowedSports: string[],
+    tip: { sport?: string; period?: string; extra?: string }
+): boolean {
+    const tipNorm = normalizeSportName(tip?.sport);
+    const playerProp = isPlayerPropTip(tip);
+
+    for (const allowed of allowedSports) {
+        const allowedNorm = normalizeSportName(allowed);
+
+        if (allowedNorm === 'props') {
+            if (playerProp) return true;
+            continue;
+        }
+
+        if (playerProp) continue;
+
+        if (!tipNorm) continue;
+        if (allowedNorm === tipNorm) return true;
+        if (
+            (allowedNorm === 'soccer' || allowedNorm === 'football') &&
+            (tipNorm === 'soccer' || tipNorm === 'football')
+        ) {
+            return true;
+        }
+        const esportsTips = new Set([
+            'counter-strike', 'dota 2', 'league of legends', 'valorant', 'esports', 'e-sports',
+        ]);
+        if (allowedNorm === 'esports' && esportsTips.has(tipNorm)) return true;
+    }
+
+    return false;
+}
 
 function parseOptionalNumber(value: unknown): number | undefined {
     if (value === '' || value === undefined || value === null) return undefined;
@@ -191,6 +258,8 @@ export function getTipFilterSkipReason(
         edge?: number;
         odds?: unknown;
         sport?: string;
+        period?: string;
+        extra?: string;
         isLive?: boolean;
         opbookmaker?: string;
         payload?: { kind?: string };
@@ -253,23 +322,12 @@ export function getTipFilterSkipReason(
     }
 
     if (hasSportsFilter) {
-        const tipSport = tip?.sport;
-        if (!tipSport) {
+        if (!tip?.sport && !isPlayerPropTip(tip)) {
             return 'Tip skipped: sport missing for instance filter';
         }
-        const allowed = (config.sports as string[]).map((s) => String(s).toLowerCase());
-        const tipNorm = String(tipSport).toLowerCase();
-        const esportsTips = new Set([
-            'counter-strike', 'dota 2', 'league of legends', 'valorant', 'esports', 'e-sports',
-        ]);
-        const matches = allowed.some((a) => {
-            if (a === tipNorm) return true;
-            if ((a === 'soccer' || a === 'football') && (tipNorm === 'soccer' || tipNorm === 'football')) return true;
-            if (a === 'esports' && esportsTips.has(tipNorm)) return true;
-            return false;
-        });
-        if (!matches) {
-            return `Tip skipped: sport "${tipSport}" not in allowed list`;
+        if (!sportMatchesAllowed(config.sports as string[], tip)) {
+            const label = isPlayerPropTip(tip) ? 'Props' : String(tip?.sport ?? '');
+            return `Tip skipped: sport "${label}" not in allowed list`;
         }
     }
 

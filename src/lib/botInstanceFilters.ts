@@ -5,6 +5,9 @@ export const ALLOWED_SPORTS = [
     'Table Tennis',
     'Hockey',
     'Baseball',
+    'Basketball Props',
+    'Baseball Props',
+    /** @deprecated prefer Basketball Props / Baseball Props; kept for existing configs */
     'Props',
     'Volleyball',
     'Handball',
@@ -53,7 +56,7 @@ export function stripBookieAndTipFilterConfig(config: Record<string, unknown>): 
     }
 }
 
-const FILTER_NUMBER_KEYS = ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries'] as const;
+const FILTER_NUMBER_KEYS = ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries', 'valuebetRetryIntervalMs'] as const;
 const ALLOWED_SPORT_SET = new Set<string>(ALLOWED_SPORTS);
 
 function normalizeSportName(value: unknown): string {
@@ -88,6 +91,34 @@ function isPlayerPropTip(tip: {
     return propKeywords.some((k) => label.includes(k));
 }
 
+function getMlbPlayerPropSkipReason(tip: {
+    sport?: string;
+    period?: string;
+    extra?: string;
+    outcome?: string;
+}): string | null {
+    if (normalizeSportName(tip?.sport) !== 'baseball') return null;
+    if (!isPlayerPropTip(tip)) return null;
+
+    const extra = String(tip?.extra ?? '').trim();
+    const parts = extra.split('|').map((p) => p.trim());
+    let side = String(parts[2] ?? '').trim().toLowerCase();
+    if (!side) {
+        const outcome = String(tip?.outcome ?? '').trim().toLowerCase();
+        if (outcome.startsWith('over')) side = 'over';
+        else if (outcome.startsWith('under')) side = 'under';
+    }
+    if (side === 'over') {
+        return 'Tip skipped: MLB player prop over (under only)';
+    }
+    return null;
+}
+
+/** Normalize "Basketball Props" / "basketball-props" → comparable form. */
+function normalizePropsFilterKey(allowedNorm: string): string {
+    return allowedNorm.replace(/[\s_-]+/g, ' ').trim();
+}
+
 function sportMatchesAllowed(
     allowedSports: string[],
     tip: { sport?: string; period?: string; extra?: string }
@@ -96,13 +127,22 @@ function sportMatchesAllowed(
     const playerProp = isPlayerPropTip(tip);
 
     for (const allowed of allowedSports) {
-        const allowedNorm = normalizeSportName(allowed);
+        const allowedNorm = normalizePropsFilterKey(normalizeSportName(allowed));
 
+        // Legacy: any player props tip
         if (allowedNorm === 'props') {
             if (playerProp) return true;
             continue;
         }
 
+        // Sport-scoped props: "basketball props" / "baseball props"
+        if (allowedNorm.endsWith(' props')) {
+            const sportPart = allowedNorm.slice(0, -' props'.length).trim();
+            if (playerProp && tipNorm && tipNorm === sportPart) return true;
+            continue;
+        }
+
+        // Player-prop tips only match Props / "<Sport> Props", never plain sport chips
         if (playerProp) continue;
 
         if (!tipNorm) continue;
@@ -201,6 +241,13 @@ export function validateFilterConfig(
         }
     }
 
+    const valuebetRetryIntervalMs = config.valuebetRetryIntervalMs as number | undefined;
+    if (valuebetRetryIntervalMs !== undefined) {
+        if (!Number.isInteger(valuebetRetryIntervalMs) || valuebetRetryIntervalMs < 1000) {
+            return { ok: false, error: 'valuebetRetryIntervalMs must be an integer >= 1000' };
+        }
+    }
+
     if (config.sports !== undefined) {
         if (!Array.isArray(config.sports)) {
             return { ok: false, error: 'sports must be an array' };
@@ -240,7 +287,12 @@ export function formatFilterSummary(config: Record<string, unknown>): string | n
 
     const liveWaitRetries = config.liveWaitRetries as number | undefined;
     if (liveWaitRetries !== undefined) {
-        parts.push(`Live wait ×${liveWaitRetries}`);
+        parts.push(`Live wait / retry ×${liveWaitRetries}`);
+    }
+
+    const valuebetRetryIntervalMs = config.valuebetRetryIntervalMs as number | undefined;
+    if (valuebetRetryIntervalMs !== undefined) {
+        parts.push(`Retry interval ${Math.round(valuebetRetryIntervalMs / 1000)}s`);
     }
 
     const sports = config.sports as string[] | undefined;
@@ -266,6 +318,9 @@ export function getTipFilterSkipReason(
     },
     config: Record<string, unknown>
 ): string | null {
+    const mlbPropSkipReason = getMlbPlayerPropSkipReason(tip);
+    if (mlbPropSkipReason) return mlbPropSkipReason;
+
     const hasEdgeFilter = config.minEdge != null || config.maxEdge != null;
     const hasOddsFilter = config.minOdds != null || config.maxOdds != null;
     const hasSportsFilter = Array.isArray(config.sports) && config.sports.length > 0;
@@ -326,7 +381,9 @@ export function getTipFilterSkipReason(
             return 'Tip skipped: sport missing for instance filter';
         }
         if (!sportMatchesAllowed(config.sports as string[], tip)) {
-            const label = isPlayerPropTip(tip) ? 'Props' : String(tip?.sport ?? '');
+            const label = isPlayerPropTip(tip)
+                ? `${String(tip?.sport ?? '').trim() || '?'} Props`
+                : String(tip?.sport ?? '');
             return `Tip skipped: sport "${label}" not in allowed list`;
         }
     }

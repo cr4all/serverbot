@@ -53,8 +53,10 @@ export interface IBotInstanceFilters {
     maxEdge?: number;
     minOdds?: number;
     maxOdds?: number;
-    /** Live valuebet leg/odds poll attempts before giving up (Bet365). */
+    /** Live poll + cross-batch retry count (Bet365 valuebot/tipsterbot). Default 60. */
     liveWaitRetries?: number;
+    /** Interval (ms) for retry-list timer when no new tips arrive (Bet365 valuebot/tipsterbot). */
+    valuebetRetryIntervalMs?: number;
     sports?: string[];
 }
 

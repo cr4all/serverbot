@@ -42,6 +42,7 @@ function defaultConfig(overrides?: Record<string, unknown>) {
         minOdds: '',
         maxOdds: '',
         liveWaitRetries: '',
+        valuebetRetryIntervalMs: '',
         sports: [] as string[],
         ...overrides,
     };
@@ -67,6 +68,7 @@ function configFromInstance(initialData: IBotInstance) {
         minOdds: c.minOdds != null ? String(c.minOdds) : '',
         maxOdds: c.maxOdds != null ? String(c.maxOdds) : '',
         liveWaitRetries: c.liveWaitRetries != null ? String(c.liveWaitRetries) : '',
+        valuebetRetryIntervalMs: c.valuebetRetryIntervalMs != null ? String(c.valuebetRetryIntervalMs) : '',
         sports: Array.isArray(c.sports) ? c.sports : [],
     };
 }
@@ -272,7 +274,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 } else {
                     delete config.stake;
                 }
-                for (const key of ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries'] as const) {
+                for (const key of ['minEdge', 'maxEdge', 'minOdds', 'maxOdds', 'liveWaitRetries', 'valuebetRetryIntervalMs'] as const) {
                     const raw = config[key];
                     if (raw !== '' && raw !== undefined && raw !== null) {
                         config[key] = Number(raw);
@@ -833,7 +835,23 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
                                         />
                                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                                            Bet365 live: min-odds / line-change poll attempts (empty = 60).
+                                            Bet365 live: line/odds poll attempts and failed-pick retry count (empty = 60).
+                                        </p>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Valuebet Retry Interval (ms)</label>
+                                        <input
+                                            type="number"
+                                            name="valuebetRetryIntervalMs"
+                                            step="1000"
+                                            min="1000"
+                                            placeholder="default 30000"
+                                            value={formData.config.valuebetRetryIntervalMs}
+                                            onChange={handleChange}
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                        />
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            Timer interval for retry-list processing when no new tips (empty = 30000).
                                         </p>
                                     </div>
                                     <div className="sm:col-span-2">

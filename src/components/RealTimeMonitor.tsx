@@ -36,16 +36,21 @@ interface TipEntry {
     source: string;
 }
 
+type PlaceStatusFilter = 'ALL' | 'SUCCESS' | 'FAILED';
+
 export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTimeMonitorProps) {
     const { data: session } = useSession();
     const isAdmin = (session?.user as any)?.role === 'admin';
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [bets, setBets] = useState<BetEntry[]>([]);
     const [tips, setTips] = useState<TipEntry[]>([]);
+    const [placeStatusFilter, setPlaceStatusFilter] = useState<PlaceStatusFilter>('ALL');
     const [isConnected, setIsConnected] = useState(false);
     const [currentBalance, setCurrentBalance] = useState(0);
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const socketRef = useRef<Socket | null>(null);
+    const placeStatusFilterRef = useRef<PlaceStatusFilter>('ALL');
+    placeStatusFilterRef.current = placeStatusFilter;
     // Use client-exposed env var. NEXT_PUBLIC_* vars are inlined into browser bundles.
     // Keep fallback to server-only BOTMANAGER_URL and localhost for safety.
     const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
@@ -109,11 +114,16 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
         });
 
         socketRef.current.on('bet', (data: any) => {
+            const status: BetEntry['status'] =
+                data.placeStatus || data.status || (data.result === 'WIN' ? 'SUCCESS' : 'FAILED');
+            const filter = placeStatusFilterRef.current;
+            if (filter !== 'ALL' && status !== filter) return;
+
             const mapped: Partial<BetEntry> = {
                 _id: data._id || data.id || Math.random().toString(36).substr(2, 9),
                 createdAt: data.createdAt || new Date().toISOString(),
                 stake: data.stake || data.amount || 0,
-                status: data.status || (data.result === 'WIN' ? 'SUCCESS' : 'FAILED'),
+                status,
                 failedCount: data.failedCount || 0,
                 balance: data.balance,
                 orderId: data.orderId,
@@ -158,7 +168,11 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
         let mounted = true;
         const fetchBets = async () => {
             try {
-                const res = await fetch(`/api/bet-history/${instanceId}?limit=10`);
+                const params = new URLSearchParams({ limit: '10' });
+                if (placeStatusFilter !== 'ALL') {
+                    params.set('placeStatus', placeStatusFilter);
+                }
+                const res = await fetch(`/api/bet-history/${instanceId}?${params}`);
                 if (!res.ok) return;
                 const dataRaw = await res.json();
                 if (mounted) {
@@ -170,7 +184,7 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
                         tip: b.tip,
                         stake: b.stake,
                         failedCount: b.failedCount || 0,
-                        status: b.status,
+                        status: b.placeStatus ?? b.status,
                         balance: b.balance,
                         orderId: b.orderId,
                     } as BetEntry));
@@ -188,7 +202,7 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
             mounted = false;
             clearInterval(poll);
         };
-    }, [instanceId]);
+    }, [instanceId, placeStatusFilter]);
 
     const removeBet = async (betId: string) => {
         try {
@@ -225,7 +239,33 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
             {/* Betting History - full width first row */}
             <div className="rounded-lg bg-white p-6 shadow dark:bg-gray-800 lg:col-span-2">
-                <h3 className="mb-4 text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
+                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white">Betting History</h3>
+                    <div className="inline-flex rounded-md border border-gray-200 dark:border-gray-600" role="group" aria-label="Filter by place status">
+                        {([
+                            { value: 'ALL', label: 'All' },
+                            { value: 'SUCCESS', label: 'Success' },
+                            { value: 'FAILED', label: 'Failed' },
+                        ] as const).map(({ value, label }, idx) => (
+                            <button
+                                key={value}
+                                type="button"
+                                onClick={() => setPlaceStatusFilter(value)}
+                                className={`px-3 py-1 text-xs font-medium ${
+                                    idx === 0 ? 'rounded-l-md' : ''
+                                } ${
+                                    idx === 2 ? 'rounded-r-md' : ''
+                                } ${
+                                    placeStatusFilter === value
+                                        ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                                        : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                                } ${idx > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''}`}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
                 <div className="overflow-x-auto rounded border border-gray-200 dark:border-gray-700">
                     <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                         <thead className="bg-gray-50 dark:bg-gray-700">

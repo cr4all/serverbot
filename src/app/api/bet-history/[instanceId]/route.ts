@@ -28,9 +28,26 @@ export async function GET(request: NextRequest, context: { params: any }) {
 
     const url = new URL(request.url);
     const limit = Number(url.searchParams.get('limit') || '50');
+    const placeStatusRaw = String(url.searchParams.get('placeStatus') || 'ALL').trim().toUpperCase();
+    const placeStatus =
+      placeStatusRaw === '' || placeStatusRaw === 'ALL'
+        ? null
+        : placeStatusRaw;
 
-    // Query by botInstanceId field in your BetHistory schema
-    const bets = await BetHistory.find({ botInstanceId: instanceId })
+    if (placeStatus != null && placeStatus !== 'SUCCESS' && placeStatus !== 'FAILED') {
+      return NextResponse.json(
+        { error: 'placeStatus must be SUCCESS, FAILED, or ALL' },
+        { status: 400 },
+      );
+    }
+
+    // Query by botInstanceId; optional placeStatus filter (legacy status fallback)
+    const query: Record<string, unknown> = { botInstanceId: instanceId };
+    if (placeStatus) {
+      query.$or = [{ placeStatus }, { status: placeStatus }];
+    }
+
+    const bets = await BetHistory.find(query)
       .sort({ createdAt: -1 })
       .limit(limit)
       .lean();

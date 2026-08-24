@@ -1,5 +1,6 @@
 export const ALLOWED_SPORTS = [
     'Soccer',
+    'Soccer Corner',
     'Basketball',
     'Tennis',
     'Table Tennis',
@@ -119,6 +120,12 @@ function normalizePropsFilterKey(allowedNorm: string): string {
     return allowedNorm.replace(/[\s_-]+/g, ' ').trim();
 }
 
+/** Tip sport Soccer_corner / football_corner — not plain Soccer. */
+function isSoccerCornerSportName(tipNorm: string): boolean {
+    const compact = normalizePropsFilterKey(tipNorm);
+    return compact === 'soccer corner' || compact === 'football corner';
+}
+
 function sportMatchesAllowed(
     allowedSports: string[],
     tip: { sport?: string; period?: string; extra?: string }
@@ -147,6 +154,9 @@ function sportMatchesAllowed(
 
         if (!tipNorm) continue;
         if (allowedNorm === tipNorm) return true;
+        if (allowedNorm === 'soccer corner' && isSoccerCornerSportName(tipNorm)) {
+            return true;
+        }
         if (
             (allowedNorm === 'soccer' || allowedNorm === 'football') &&
             (tipNorm === 'soccer' || tipNorm === 'football')
@@ -155,6 +165,7 @@ function sportMatchesAllowed(
         }
         const esportsTips = new Set([
             'counter-strike', 'dota 2', 'league of legends', 'valorant', 'esports', 'e-sports',
+            'e-soccer', 'esoccer',
         ]);
         if (allowedNorm === 'esports' && esportsTips.has(tipNorm)) return true;
     }

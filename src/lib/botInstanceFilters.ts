@@ -39,6 +39,12 @@ export function templateUsesBookieConfig(template: IBotTemplateRef | null | unde
     return templateSupportsTipFilters(template);
 }
 
+/** Templates that start Chrome via worker-pool (`CHROME_POOLS`). */
+export function templateUsesChromePool(template: IBotTemplateRef | null | undefined): boolean {
+    const type = String(template?.type ?? '').toUpperCase();
+    return type === 'BET365' || type === 'MYSTAKE' || type === 'SUPERBET';
+}
+
 export const BOOKIE_TIP_FILTER_CONFIG_KEYS = [
     'minEdge',
     'maxEdge',

@@ -66,7 +66,12 @@ export interface IBotInstance {
     userId: string | Types.ObjectId | IUser;
     name: string;
     lastBalance: number;
-    config: Record<string, any> & IBotInstanceFilters & { locale?: Locale; BOTTYPE?: BotInstanceBotType };
+    config: Record<string, any> & IBotInstanceFilters & {
+        locale?: Locale;
+        BOTTYPE?: BotInstanceBotType;
+        chromeCdpHost?: string;
+        chromePoolBaseUrl?: string;
+    };
     status: BotStatus;
     lastHeartbeat?: Date;
     createdAt: Date;

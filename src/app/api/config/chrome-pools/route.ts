@@ -1,0 +1,30 @@
+import { NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+
+export async function GET() {
+    const session = await getServerSession(authOptions);
+    if (!session || !session.user) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    try {
+        const baseUrl = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
+        const res = await fetch(`${baseUrl}/chrome-pools`);
+        if (!res.ok) {
+            return NextResponse.json(
+                { error: 'Failed to fetch Chrome pool VPS list' },
+                { status: res.status },
+            );
+        }
+        const data = await res.json();
+        const pools = Array.isArray(data?.pools) ? data.pools : [];
+        return NextResponse.json({ pools });
+    } catch (e) {
+        console.error(e);
+        return NextResponse.json(
+            { error: 'Failed to fetch Chrome pool VPS list' },
+            { status: 500 },
+        );
+    }
+}

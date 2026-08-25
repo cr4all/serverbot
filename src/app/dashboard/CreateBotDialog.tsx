@@ -9,6 +9,7 @@ import {
     IBotTemplateRef,
     stripBookieAndTipFilterConfig,
     templateUsesBookieConfig,
+    templateUsesChromePool,
 } from '@/lib/botInstanceFilters';
 
 interface CreateBotDialogProps {
@@ -25,6 +26,15 @@ const STEP_CONFIGURE_INSTANCE = 2;
 
 const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'] as const;
 
+type ChromePoolOption = { baseUrl: string; cdpHost: string; label?: string };
+
+function chromePoolSelectValue(pool: { baseUrl?: string; cdpHost?: string }) {
+    const baseUrl = String(pool?.baseUrl || '').replace(/\/$/, '');
+    const cdpHost = String(pool?.cdpHost || '').trim();
+    if (!baseUrl || !cdpHost) return '';
+    return `${baseUrl}|${cdpHost}`;
+}
+
 function defaultConfig(overrides?: Record<string, unknown>) {
     return {
         username: '',
@@ -37,6 +47,8 @@ function defaultConfig(overrides?: Record<string, unknown>) {
         proxyPort: '',
         proxyUsername: '',
         proxyPassword: '',
+        chromeCdpHost: '',
+        chromePoolBaseUrl: '',
         minEdge: '',
         maxEdge: '',
         minOdds: '',
@@ -63,6 +75,8 @@ function configFromInstance(initialData: IBotInstance) {
         proxyPort: c.proxyPort != null ? String(c.proxyPort) : '',
         proxyUsername: c.proxyUsername || '',
         proxyPassword: c.proxyPassword || '',
+        chromeCdpHost: c.chromeCdpHost || '',
+        chromePoolBaseUrl: c.chromePoolBaseUrl || '',
         minEdge: c.minEdge != null ? String(c.minEdge) : '',
         maxEdge: c.maxEdge != null ? String(c.maxEdge) : '',
         minOdds: c.minOdds != null ? String(c.minOdds) : '',
@@ -104,6 +118,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     }>({ open: false, title: '', message: '', variant: 'info' });
     const allowedLocales = [...ALLOWED_LOCALES];
     const [allowedSports, setAllowedSports] = useState<string[]>([...ALLOWED_SPORTS]);
+    const [chromePools, setChromePools] = useState<ChromePoolOption[]>([]);
     const [formData, setFormData] = useState({
         botId: '',
         name: '',
@@ -121,6 +136,22 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             })
             .catch(() => {});
     }, []);
+
+    useEffect(() => {
+        if (!isOpen) return;
+        fetch('/api/config/chrome-pools')
+            .then((res) => (res.ok ? res.json() : null))
+            .then((data) => {
+                if (Array.isArray(data?.pools)) {
+                    setChromePools(
+                        data.pools.filter(
+                            (p: ChromePoolOption) => p?.baseUrl && p?.cdpHost,
+                        ),
+                    );
+                }
+            })
+            .catch(() => setChromePools([]));
+    }, [isOpen]);
 
     useEffect(() => {
         if (isOpen) {
@@ -179,6 +210,26 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 config: { ...prev.config, [name]: value },
             }));
         }
+    };
+
+    const handleChromePoolChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        const value = e.target.value;
+        if (!value) {
+            setFormData((prev) => ({
+                ...prev,
+                config: { ...prev.config, chromeCdpHost: '', chromePoolBaseUrl: '' },
+            }));
+            return;
+        }
+        const pool = chromePools.find((p) => chromePoolSelectValue(p) === value);
+        setFormData((prev) => ({
+            ...prev,
+            config: {
+                ...prev.config,
+                chromeCdpHost: pool?.cdpHost || '',
+                chromePoolBaseUrl: pool?.baseUrl || '',
+            },
+        }));
     };
 
     const toggleSport = (sport: string) => {
@@ -297,6 +348,20 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                     config[p.paramName] = raw === true || raw === 'true';
                 }
             }
+            if (!templateUsesChromePool(submitTemplate)) {
+                delete config.chromeCdpHost;
+                delete config.chromePoolBaseUrl;
+            } else {
+                const host = String(config.chromeCdpHost ?? '').trim();
+                const base = String(config.chromePoolBaseUrl ?? '').replace(/\/$/, '');
+                if (!host || !base) {
+                    delete config.chromeCdpHost;
+                    delete config.chromePoolBaseUrl;
+                } else {
+                    config.chromeCdpHost = host;
+                    config.chromePoolBaseUrl = base;
+                }
+            }
 
             const body: any = {
                 name: formData.name,
@@ -345,6 +410,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         templates.find((t) => String(t._id) === String(formData.botId)) ??
         (initialData?.botId && typeof initialData.botId === 'object' ? (initialData.botId as IBotTemplateRef & { _id?: unknown }) : undefined);
     const usesBookieConfig = templateUsesBookieConfig(selectedTemplate);
+    const usesChromePool = templateUsesChromePool(selectedTemplate);
     const isFreeTier = resolveBotTier(templates, formData.botId, initialData) === 'free';
     const isCreateFlow = !initialData;
     const isAdmin = (session?.user as any)?.role === 'admin';
@@ -717,6 +783,40 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     ))}
                                 </select>
                             </div>
+
+                            {usesChromePool && (
+                            <div className="sm:col-span-2">
+                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                                    Chrome VPS
+                                </label>
+                                <select
+                                    name="chromePoolSelect"
+                                    value={
+                                        formData.config.chromePoolBaseUrl && formData.config.chromeCdpHost
+                                            ? chromePoolSelectValue({
+                                                  baseUrl: formData.config.chromePoolBaseUrl,
+                                                  cdpHost: formData.config.chromeCdpHost,
+                                              })
+                                            : ''
+                                    }
+                                    onChange={handleChromePoolChange}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    <option value="">Auto (first available VPS)</option>
+                                    {chromePools.map((p) => (
+                                        <option key={chromePoolSelectValue(p)} value={chromePoolSelectValue(p)}>
+                                            {p.label || p.cdpHost}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                    Which worker-pool server runs Chrome for this instance. Change applies the next time the bot starts.
+                                    {chromePools.length === 0
+                                        ? ' No VPS list loaded — check CHROME_POOLS on mainbot.'
+                                        : ''}
+                                </p>
+                            </div>
+                            )}
 
                             <>
                                 <div>

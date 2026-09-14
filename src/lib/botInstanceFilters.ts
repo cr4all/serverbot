@@ -22,6 +22,7 @@ export interface IBotTemplateRef {
     type?: string;
     subtype?: number;
     supportsTipFilters?: boolean;
+    name?: string;
 }
 
 /** Autonomous / non–tip-driven templates (e.g. Polymarket Crypto) skip sports/odds/edge filters. */
@@ -40,9 +41,14 @@ export function templateUsesBookieConfig(template: IBotTemplateRef | null | unde
 }
 
 /** Templates that start Chrome via worker-pool (`CHROME_POOLS`). */
+const CHROME_POOL_TEMPLATE_TYPES = new Set(['BET365', 'MYSTAKE', 'SUPERBET', 'STOIXIMAN', 'NOVIBET']);
+
 export function templateUsesChromePool(template: IBotTemplateRef | null | undefined): boolean {
-    const type = String(template?.type ?? '').toUpperCase();
-    return type === 'BET365' || type === 'MYSTAKE' || type === 'SUPERBET';
+    if (!template) return false;
+    const type = String(template.type ?? '').toUpperCase();
+    if (CHROME_POOL_TEMPLATE_TYPES.has(type)) return true;
+    const name = String(template.name ?? '').toLowerCase();
+    return name.includes('novibet');
 }
 
 export const BOOKIE_TIP_FILTER_CONFIG_KEYS = [

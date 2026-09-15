@@ -26,6 +26,38 @@ const STEP_CONFIGURE_INSTANCE = 2;
 
 const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'] as const;
 
+const ALLOWED_BOT_TYPES = ['copybot', 'valuebot', 'tipsterbot'] as const;
+
+function selectedBotTypes(raw: unknown): string[] {
+    const tokens: unknown[] = [];
+    const push = (value: unknown) => {
+        if (value == null || value === '') return;
+        if (Array.isArray(value)) {
+            for (const item of value) push(item);
+            return;
+        }
+        for (const part of String(value).split(/[,|]/)) {
+            const t = part.trim();
+            if (t) tokens.push(t);
+        }
+    };
+    push(raw);
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const token of tokens) {
+        const t = String(token ?? '').trim().toLowerCase();
+        if (!(ALLOWED_BOT_TYPES as readonly string[]).includes(t) || seen.has(t)) continue;
+        seen.add(t);
+        out.push(t);
+    }
+    return out;
+}
+
+function normalizeBotTypesForForm(raw: unknown): string[] {
+    const selected = selectedBotTypes(raw);
+    return selected.length ? selected : ['copybot'];
+}
+
 type ChromePoolOption = { baseUrl: string; cdpHost: string; label?: string };
 
 function chromePoolSelectValue(pool: { baseUrl?: string; cdpHost?: string }) {
@@ -84,6 +116,7 @@ function configFromInstance(initialData: IBotInstance) {
         liveWaitRetries: c.liveWaitRetries != null ? String(c.liveWaitRetries) : '',
         valuebetRetryIntervalMs: c.valuebetRetryIntervalMs != null ? String(c.valuebetRetryIntervalMs) : '',
         sports: Array.isArray(c.sports) ? c.sports : [],
+        BOTTYPE: normalizeBotTypesForForm(c.BOTTYPE),
     };
 }
 
@@ -242,6 +275,16 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
         });
     };
 
+    const toggleBotType = (botType: string) => {
+        setFormData((prev) => {
+            const current = selectedBotTypes((prev.config as Record<string, unknown>).BOTTYPE);
+            const BOTTYPE = current.includes(botType)
+                ? current.filter((t) => t !== botType)
+                : [...current, botType];
+            return { ...prev, config: { ...prev.config, BOTTYPE } };
+        });
+    };
+
     const selectAllSports = () => {
         setFormData((prev) => ({
             ...prev,
@@ -342,6 +385,10 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             }
             for (const p of configParams) {
                 const raw = config[p.paramName];
+                if (p.paramName === 'BOTTYPE') {
+                    config.BOTTYPE = normalizeBotTypesForForm(raw);
+                    continue;
+                }
                 if (p.dataType === 'number' && (raw !== '' && raw !== undefined && raw !== null)) {
                     config[p.paramName] = Number(raw);
                 } else if (p.dataType === 'Boolean') {
@@ -509,6 +556,9 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                     config: {
                                                         ...defaultConfig(),
                                                         ...(t.defaultConfig ?? {}),
+                                                        BOTTYPE: normalizeBotTypesForForm(
+                                                            (t.defaultConfig as { BOTTYPE?: unknown } | undefined)?.BOTTYPE
+                                                        ),
                                                     },
                                                 }));
                                             }}
@@ -686,6 +736,31 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                             );
                                         }
                                         const isUnion = p.dataType === 'UNION' || p.dataType === 'Union';
+                                        if (isUnion && p.unionValues?.length && name === 'BOTTYPE') {
+                                            const selected = selectedBotTypes(val);
+                                            return (
+                                                <div key={i}>
+                                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">{p.paramName}</label>
+                                                    <div className="mt-1.5 flex flex-col gap-1.5">
+                                                        {p.unionValues.map((v) => {
+                                                            const option = String(v);
+                                                            const checked = selected.includes(option);
+                                                            return (
+                                                                <label key={option} className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+                                                                    <input
+                                                                        type="checkbox"
+                                                                        checked={checked}
+                                                                        onChange={() => toggleBotType(option)}
+                                                                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                                                    />
+                                                                    {option}
+                                                                </label>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        }
                                         if (isUnion && p.unionValues?.length) {
                                             return (
                                                 <div key={i}>

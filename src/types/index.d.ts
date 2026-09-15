@@ -68,7 +68,7 @@ export interface IBotInstance {
     lastBalance: number;
     config: Record<string, any> & IBotInstanceFilters & {
         locale?: Locale;
-        BOTTYPE?: BotInstanceBotType;
+        BOTTYPE?: BotInstanceBotType | BotInstanceBotType[];
         chromeCdpHost?: string;
         chromePoolBaseUrl?: string;
     };

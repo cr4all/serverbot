@@ -117,6 +117,7 @@ function configFromInstance(initialData: IBotInstance) {
         valuebetRetryIntervalMs: c.valuebetRetryIntervalMs != null ? String(c.valuebetRetryIntervalMs) : '',
         sports: Array.isArray(c.sports) ? c.sports : [],
         BOTTYPE: normalizeBotTypesForForm(c.BOTTYPE),
+        VALUEBET_MODE: String(c.VALUEBET_MODE ?? 'single').trim().toLowerCase() === 'double' ? 'double' : 'single',
     };
 }
 
@@ -281,7 +282,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             const BOTTYPE = current.includes(botType)
                 ? current.filter((t) => t !== botType)
                 : [...current, botType];
-            return { ...prev, config: { ...prev.config, BOTTYPE } };
+            const nextConfig: Record<string, unknown> = { ...prev.config, BOTTYPE };
+            if (!BOTTYPE.includes('valuebot')) {
+                nextConfig.VALUEBET_MODE = 'single';
+            }
+            return { ...prev, config: nextConfig };
         });
     };
 
@@ -387,6 +392,14 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 const raw = config[p.paramName];
                 if (p.paramName === 'BOTTYPE') {
                     config.BOTTYPE = normalizeBotTypesForForm(raw);
+                    continue;
+                }
+                if (p.paramName === 'VALUEBET_MODE') {
+                    const types = normalizeBotTypesForForm(config.BOTTYPE);
+                    config.VALUEBET_MODE = types.includes('valuebot')
+                        && String(raw ?? 'single').trim().toLowerCase() === 'double'
+                        ? 'double'
+                        : 'single';
                     continue;
                 }
                 if (p.dataType === 'number' && (raw !== '' && raw !== undefined && raw !== null)) {
@@ -715,7 +728,12 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                   )
                                           )
                                         : params
-                                    ).map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => {
+                                    )
+                                    .filter((p: { paramName: string }) => {
+                                        if (p.paramName !== 'VALUEBET_MODE') return true;
+                                        return selectedBotTypes((formData.config as Record<string, unknown>).BOTTYPE).includes('valuebot');
+                                    })
+                                    .map((p: { paramName: string; dataType: string; unionValues?: (string | number)[] }, i: number) => {
                                         const name = p.paramName;
                                         const val = (formData.config as Record<string, unknown>)[name];
                                         if (p.dataType === 'Boolean') {

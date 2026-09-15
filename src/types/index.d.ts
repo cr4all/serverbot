@@ -69,6 +69,7 @@ export interface IBotInstance {
     config: Record<string, any> & IBotInstanceFilters & {
         locale?: Locale;
         BOTTYPE?: BotInstanceBotType | BotInstanceBotType[];
+        VALUEBET_MODE?: 'single' | 'double';
         chromeCdpHost?: string;
         chromePoolBaseUrl?: string;
     };

@@ -282,11 +282,14 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             const BOTTYPE = current.includes(botType)
                 ? current.filter((t) => t !== botType)
                 : [...current, botType];
-            const nextConfig: Record<string, unknown> = { ...prev.config, BOTTYPE };
-            if (!BOTTYPE.includes('valuebot')) {
-                nextConfig.VALUEBET_MODE = 'single';
-            }
-            return { ...prev, config: nextConfig };
+            return {
+                ...prev,
+                config: {
+                    ...prev.config,
+                    BOTTYPE,
+                    ...(BOTTYPE.includes('valuebot') ? {} : { VALUEBET_MODE: 'single' as const }),
+                },
+            };
         });
     };
 

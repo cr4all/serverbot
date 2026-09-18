@@ -1,6 +1,7 @@
 export const ALLOWED_SPORTS = [
     'Soccer',
     'Soccer Corner',
+    'Horse Racing',
     'Basketball',
     'Tennis',
     'Table Tennis',
@@ -167,6 +168,9 @@ function sportMatchesAllowed(
         if (!tipNorm) continue;
         if (allowedNorm === tipNorm) return true;
         if (allowedNorm === 'soccer corner' && isSoccerCornerSportName(tipNorm)) {
+            return true;
+        }
+        if (allowedNorm === 'horse racing' && normalizePropsFilterKey(tipNorm) === 'horse racing') {
             return true;
         }
         if (

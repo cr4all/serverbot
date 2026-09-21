@@ -181,7 +181,7 @@ function sportMatchesAllowed(
         }
         const esportsTips = new Set([
             'counter-strike', 'dota 2', 'league of legends', 'valorant', 'esports', 'e-sports',
-            'e-soccer', 'esoccer',
+            'e-soccer', 'esoccer', 'e-basketball', 'ebasketball',
         ]);
         if (allowedNorm === 'esports' && esportsTips.has(tipNorm)) return true;
     }

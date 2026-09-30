@@ -1,67 +1,46 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
-import mongoose from 'mongoose';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
-import BetHistory from '@/models/BetHistory';
-import BotInstance from '@/models/BotInstance';
-import {
-  aggregateBetRows,
-  excludeMockFromTemplateStats,
-  parseStatsQuery,
-  periodRange,
-  templateSummary,
-  type BetStatsRow,
-} from '@/lib/bettingStats';
+import Bot from '@/models/Bot';
+import { parseStatsQuery } from '@/lib/statsApiParams';
+import { fetchTemplateBettingStats } from '@/services/statsAggregate';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+    try {
+        const session = await getServerSession(authOptions);
+        if (!session?.user) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const { id: botId } = await params;
+        const parsed = parseStatsQuery(new URL(request.url).searchParams);
+        if ('error' in parsed) {
+            return NextResponse.json({ error: parsed.error }, { status: 400 });
+        }
+
+        await connectDB();
+
+        const template = await Bot.findById(botId).select('_id name').lean();
+        if (!template) {
+            return NextResponse.json({ error: 'Bot template not found' }, { status: 404 });
+        }
+
+        const stats = await fetchTemplateBettingStats({
+            botId,
+            period: parsed.period,
+            offset: parsed.offset,
+            options:
+                parsed.excludeMock !== undefined ? { excludeMock: parsed.excludeMock } : undefined,
+        });
+
+        return NextResponse.json({
+            botId,
+            botName: template.name,
+            ...stats,
+        });
+    } catch (error) {
+        console.error('Error fetching template betting stats:', error);
+        return NextResponse.json({ error: 'Failed to fetch template stats' }, { status: 500 });
     }
-
-    const { id } = await params;
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-      return NextResponse.json({ error: 'Invalid bot id' }, { status: 400 });
-    }
-
-    const url = new URL(request.url);
-    const parsed = parseStatsQuery(url.searchParams.get('period'), url.searchParams.get('offset'));
-    if (!parsed.ok) {
-      return NextResponse.json({ error: parsed.error }, { status: 400 });
-    }
-
-    await connectDB();
-
-    const botObjectId = new mongoose.Types.ObjectId(id);
-    const instances = await BotInstance.find({ botId: botObjectId }).select('_id').lean<Array<{ _id: mongoose.Types.ObjectId }>>();
-    const instanceIds = instances.map((row) => row._id);
-    const range = periodRange(parsed.period, parsed.offset);
-
-    const rows = await BetHistory.find({
-      $and: [
-        { 'settlement.status': 'SETTLED' },
-        { 'settlement.settledAt': { $gte: range.start, $lte: range.end } },
-        {
-          $or: [
-            { botId: botObjectId },
-            {
-              botInstanceId: { $in: instanceIds },
-              $or: [{ botId: null }, { botId: { $exists: false } }],
-            },
-          ],
-        },
-      ],
-    }).lean<BetStatsRow[]>();
-
-    const stats = aggregateBetRows(rows, range, { excludeMock: excludeMockFromTemplateStats() });
-    return NextResponse.json(templateSummary(stats));
-  } catch (error) {
-    console.error('Error fetching template stats:', error);
-    return NextResponse.json({ error: 'Failed to fetch template stats' }, { status: 500 });
-  }
 }

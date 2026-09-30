@@ -114,4 +114,4 @@ BetHistorySchema.index({ botInstanceId: 1, 'settlement.status': 1, placeStatus: 
 BetHistorySchema.index({ botId: 1, 'settlement.status': 1, 'settlement.settledAt': -1 });
 BetHistorySchema.index({ orderId: 1 }, { sparse: true });
 
-export default mongoose.model('BetHistory', BetHistorySchema);
+export default mongoose.models.BetHistory || mongoose.model('BetHistory', BetHistorySchema);

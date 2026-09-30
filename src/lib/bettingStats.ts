@@ -1,281 +1,332 @@
-export type StatsPeriodType = 'week' | 'month';
+/**
+ * PR5a — BetHistory betting statistics (single source of truth for API/UI).
+ * Execution metrics use createdAt; settlement metrics use settlement.settledAt only.
+ */
 
-export const TEMPLATE_MIN_SETTLED = 10;
+import type { Types } from 'mongoose';
 
-export const STATS_DEFINITIONS = {
-  roi: 'netPnL / totalStaked (settled)',
-  winRate: 'won / (won+lost)',
+function getPlaceStatus(doc: { placeStatus?: string; status?: string } | null | undefined): 'SUCCESS' | 'FAILED' {
+    if (!doc) return 'FAILED';
+    const ps = doc.placeStatus ?? doc.status;
+    return ps === 'SUCCESS' ? 'SUCCESS' : 'FAILED';
+}
+
+export type StatsPeriodType = 'day' | 'days7' | 'days30' | 'year' | 'all' | 'week' | 'month';
+
+export interface StatsPeriod {
+    type: StatsPeriodType;
+    start: Date;
+    end: Date;
+    offset: number;
+}
+
+export interface BetHistoryStatsRow {
+    _id?: Types.ObjectId | string;
+    createdAt?: Date | string;
+    stake?: number;
+    odds?: number | null;
+    placeStatus?: string;
+    status?: string;
+    settlement?: {
+        status?: string;
+        result?: string | null;
+        profit?: number | null;
+        settledAt?: Date | string | null;
+        raw?: { mock?: boolean } | null;
+    } | null;
+}
+
+export interface AggregateBetStatsOptions {
+    excludeMock?: boolean;
+}
+
+export const STAT_DEFINITIONS = {
+    roi: 'netPnL / totalStakedSettled × 100 (SETTLED bets in period by settledAt)',
+    winRate: 'won / (won + lost) — VOID, DRAW, PENDING excluded',
+    submitSuccessRate: 'betsPlaced / (betsPlaced + submitFailed) by createdAt',
+    netPnL: 'sum(settlement.profit) for SETTLED with settledAt in period',
+    avgOdds: 'average odds for SUCCESS placements with createdAt in period',
 } as const;
 
-export interface PeriodRange {
-  type: StatsPeriodType;
-  start: Date;
-  end: Date;
+export interface BettingStatsPayload {
+    period: {
+        type: StatsPeriodType;
+        start: string;
+        end: string;
+        offset: number;
+    };
+    execution: {
+        betsPlaced: number;
+        submitFailed: number;
+        submitSuccessRate: number;
+    };
+    settlement: {
+        settled: number;
+        pending: number;
+        won: number;
+        lost: number;
+        draw: number;
+        void: number;
+    };
+    performance: {
+        netPnL: number;
+        roi: number;
+        winRate: number;
+        avgOdds: number;
+        totalStakedSettled: number;
+    };
+    series: {
+        cumulativePnLByDay: Array<{ date: string; pnl: number; cumulative: number }>;
+    };
+    definitions: typeof STAT_DEFINITIONS;
 }
 
-export interface BetStatsSettlement {
-  status?: string | null;
-  result?: string | null;
-  profit?: number | null;
-  settledAt?: Date | string | null;
-  raw?: { mock?: boolean } | null;
+function toDate(v: Date | string | null | undefined): Date | null {
+    if (v == null) return null;
+    const d = v instanceof Date ? v : new Date(v);
+    return Number.isNaN(d.getTime()) ? null : d;
 }
 
-export interface BetStatsRow {
-  createdAt?: Date | string | null;
-  stake?: number | null;
-  odds?: number | null;
-  placeStatus?: string | null;
-  status?: string | null;
-  settlement?: BetStatsSettlement | null;
+function inRange(d: Date | null, start: Date, end: Date): boolean {
+    if (!d) return false;
+    return d.getTime() >= start.getTime() && d.getTime() <= end.getTime();
 }
 
-export interface DailyPnLPoint {
-  date: string;
-  pnl: number;
+/** UTC calendar month with offset (0 = current month). */
+export function resolveMonthPeriodUTC(ref: Date, offset: number): StatsPeriod {
+    const y = ref.getUTCFullYear();
+    const m = ref.getUTCMonth() + offset;
+    const start = new Date(Date.UTC(y, m, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() + 1, 0, 23, 59, 59, 999));
+    return { type: 'month', start, end, offset };
 }
 
-export interface InstanceBetStats {
-  period: { type: StatsPeriodType; start: string; end: string };
-  execution: {
-    betsPlaced: number;
-    submitFailed: number;
-    submitSuccessRate: number;
-  };
-  settlement: {
-    settled: number;
-    pending: number;
-    won: number;
-    lost: number;
-    draw: number;
-    void: number;
-    halfWon: number;
-    halfLost: number;
-    cashout: number;
-  };
-  performance: {
-    netPnL: number;
-    roi: number;
-    winRate: number;
-    avgOdds: number;
-    totalStakedSettled: number;
-  };
-  series: { cumulativePnLByDay: DailyPnLPoint[] };
-  definitions: { roi: string; winRate: string };
+/** UTC calendar day containing ref (offset 0 = that day). */
+export function resolveDayPeriodUTC(ref: Date, offset: number): StatsPeriod {
+    const d = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() + offset, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate(), 23, 59, 59, 999));
+    return { type: 'day', start: d, end, offset };
 }
 
-export interface TemplateBetStats {
-  period: { type: StatsPeriodType; start: string; end: string };
-  settled: number;
-  winRate: number;
-  roi: number;
-  performance: { netPnL: number };
-  insufficientData: boolean;
+/** Last N calendar days inclusive, ending at end of ref's UTC day. */
+export function resolveRollingDaysUTC(ref: Date, days: number, type: 'days7' | 'days30'): StatsPeriod {
+    const end = new Date(Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate(), 23, 59, 59, 999));
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (days - 1));
+    start.setUTCHours(0, 0, 0, 0);
+    return { type, start, end, offset: 0 };
 }
 
-function toNumber(value: unknown): number | null {
-  if (typeof value === 'number' && Number.isFinite(value)) return value;
-  if (typeof value === 'string' && value.trim() !== '') {
-    const n = Number(value);
-    if (Number.isFinite(n)) return n;
-  }
-  return null;
+/** UTC calendar year containing ref (offset shifts by whole years). */
+export function resolveYearPeriodUTC(ref: Date, offset: number): StatsPeriod {
+    const y = ref.getUTCFullYear() + offset;
+    const start = new Date(Date.UTC(y, 0, 1, 0, 0, 0, 0));
+    const end = new Date(Date.UTC(y, 11, 31, 23, 59, 59, 999));
+    return { type: 'year', start, end, offset };
 }
 
-function toDate(value: unknown): Date | null {
-  if (value instanceof Date && !Number.isNaN(value.getTime())) return value;
-  if (typeof value === 'string' || typeof value === 'number') {
-    const d = new Date(value);
-    if (!Number.isNaN(d.getTime())) return d;
-  }
-  return null;
+/** All time — no date filter on fetch; aggregation uses full row set. */
+export function resolveAllPeriod(ref = new Date()): StatsPeriod {
+    return {
+        type: 'all',
+        start: new Date(0),
+        end: ref,
+        offset: 0,
+    };
 }
 
-function inRange(value: unknown, start: Date, end: Date): boolean {
-  const d = toDate(value);
-  if (!d) return false;
-  const t = d.getTime();
-  return t >= start.getTime() && t <= end.getTime();
+/** ISO week: Monday 00:00 UTC – Sunday 23:59:59.999 UTC. offset 0 = week containing ref. */
+export function resolveWeekPeriodUTC(ref: Date, offset: number): StatsPeriod {
+    const day = ref.getUTCDay();
+    const daysFromMonday = day === 0 ? 6 : day - 1;
+    const monday = new Date(
+        Date.UTC(ref.getUTCFullYear(), ref.getUTCMonth(), ref.getUTCDate() - daysFromMonday, 0, 0, 0, 0)
+    );
+    monday.setUTCDate(monday.getUTCDate() + offset * 7);
+    const end = new Date(monday);
+    end.setUTCDate(end.getUTCDate() + 6);
+    end.setUTCHours(23, 59, 59, 999);
+    return { type: 'week', start: monday, end, offset };
+}
+
+export function resolveStatsPeriod(type: StatsPeriodType, offset: number, ref = new Date()): StatsPeriod {
+    switch (type) {
+        case 'day':
+            return resolveDayPeriodUTC(ref, offset);
+        case 'days7':
+            return resolveRollingDaysUTC(ref, 7, 'days7');
+        case 'days30':
+            return resolveRollingDaysUTC(ref, 30, 'days30');
+        case 'year':
+            return resolveYearPeriodUTC(ref, offset);
+        case 'all':
+            return resolveAllPeriod(ref);
+        case 'month':
+            return resolveMonthPeriodUTC(ref, offset);
+        case 'week':
+        default:
+            return resolveWeekPeriodUTC(ref, offset);
+    }
+}
+
+export function isMockSettlementRow(row: BetHistoryStatsRow): boolean {
+    const raw = row.settlement?.raw;
+    return Boolean(raw && typeof raw === 'object' && (raw as { mock?: boolean }).mock === true);
+}
+
+function round2(n: number): number {
+    return Math.round(n * 100) / 100;
 }
 
 function utcDateKey(d: Date): string {
-  return d.toISOString().slice(0, 10);
+    return d.toISOString().slice(0, 10);
 }
 
-function startOfIsoWeekUtc(now: Date): Date {
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  const day = start.getUTCDay();
-  const diff = day === 0 ? -6 : 1 - day;
-  start.setUTCDate(start.getUTCDate() + diff);
-  return start;
-}
+/**
+ * Pure aggregation from in-memory rows (unit tests + DB fetch post-process).
+ */
+export function aggregateBetStatsFromRows(
+    rows: BetHistoryStatsRow[],
+    period: StatsPeriod,
+    options: AggregateBetStatsOptions = {}
+): BettingStatsPayload {
+    const { excludeMock = false } = options;
+    const filtered = excludeMock ? rows.filter((r) => !isMockSettlementRow(r)) : rows;
 
-function eachUtcDay(start: Date, end: Date): string[] {
-  const keys: string[] = [];
-  const cur = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate()));
-  const last = new Date(Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()));
-  while (cur.getTime() <= last.getTime()) {
-    keys.push(utcDateKey(cur));
-    cur.setUTCDate(cur.getUTCDate() + 1);
-  }
-  return keys;
-}
+    let betsPlaced = 0;
+    let submitFailed = 0;
+    let oddsSum = 0;
+    let oddsCount = 0;
 
-export function periodRange(period: StatsPeriodType, offset: number, now = new Date()): PeriodRange {
-  const shift = Number.isFinite(offset) ? Math.trunc(offset) : 0;
-  if (period === 'week') {
-    const start = startOfIsoWeekUtc(now);
-    start.setUTCDate(start.getUTCDate() + shift * 7);
-    const end = new Date(start);
-    end.setUTCDate(end.getUTCDate() + 7);
-    end.setUTCMilliseconds(-1);
-    return { type: 'week', start, end };
-  }
-  const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + shift, 1));
-  const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + shift + 1, 1));
-  end.setUTCMilliseconds(-1);
-  return { type: 'month', start, end };
-}
+    let settled = 0;
+    let pending = 0;
+    let won = 0;
+    let lost = 0;
+    let draw = 0;
+    let voidCount = 0;
+    let netPnL = 0;
+    let totalStakedSettled = 0;
 
-export function parseStatsQuery(
-  periodRaw: string | null,
-  offsetRaw: string | null,
-): { ok: true; period: StatsPeriodType; offset: number } | { ok: false; error: string } {
-  const period = String(periodRaw || '').trim().toLowerCase();
-  if (period !== 'week' && period !== 'month') {
-    return { ok: false, error: 'period must be week or month' };
-  }
-  const offset = offsetRaw == null || offsetRaw === '' ? 0 : Number(offsetRaw);
-  if (!Number.isFinite(offset) || !Number.isInteger(offset)) {
-    return { ok: false, error: 'offset must be an integer' };
-  }
-  return { ok: true, period, offset };
-}
+    const dailyPnL = new Map<string, number>();
 
-export function isMockBet(row: BetStatsRow): boolean {
-  return row.settlement?.raw?.mock === true;
-}
+    for (const row of filtered) {
+        const createdAt = toDate(row.createdAt);
+        const placeStatus = getPlaceStatus(row);
+        const settlement = row.settlement;
 
-export function excludeMockFromTemplateStats(env?: { STATS_EXCLUDE_MOCK?: string }): boolean {
-  const value = (env ?? (process.env as { STATS_EXCLUDE_MOCK?: string })).STATS_EXCLUDE_MOCK;
-  if (value == null || value === '') return true;
-  return value !== 'false' && value !== '0';
-}
+        if (inRange(createdAt, period.start, period.end)) {
+            if (placeStatus === 'SUCCESS') {
+                betsPlaced++;
+                if (row.odds != null && !Number.isNaN(Number(row.odds))) {
+                    oddsSum += Number(row.odds);
+                    oddsCount++;
+                }
+            } else {
+                submitFailed++;
+            }
+        }
 
-function placeOf(row: BetStatsRow): 'SUCCESS' | 'FAILED' | null {
-  const raw = String(row.placeStatus || row.status || '').trim().toUpperCase();
-  if (raw === 'SUCCESS' || raw === 'FAILED') return raw;
-  return null;
-}
+        if (placeStatus === 'SUCCESS' && settlement?.status === 'PENDING' && inRange(createdAt, period.start, period.end)) {
+            pending++;
+        }
 
-function emptyStats(range: PeriodRange): InstanceBetStats {
-  const days = eachUtcDay(range.start, range.end);
-  return {
-    period: {
-      type: range.type,
-      start: range.start.toISOString(),
-      end: range.end.toISOString(),
-    },
-    execution: { betsPlaced: 0, submitFailed: 0, submitSuccessRate: 0 },
-    settlement: {
-      settled: 0,
-      pending: 0,
-      won: 0,
-      lost: 0,
-      draw: 0,
-      void: 0,
-      halfWon: 0,
-      halfLost: 0,
-      cashout: 0,
-    },
-    performance: { netPnL: 0, roi: 0, winRate: 0, avgOdds: 0, totalStakedSettled: 0 },
-    series: { cumulativePnLByDay: days.map((date) => ({ date, pnl: 0 })) },
-    definitions: { ...STATS_DEFINITIONS },
-  };
-}
+        if (settlement?.status === 'SETTLED') {
+            const settledAt = toDate(settlement.settledAt);
+            if (!inRange(settledAt, period.start, period.end)) continue;
 
-export function aggregateBetRows(
-  rows: BetStatsRow[],
-  range: PeriodRange,
-  options: { excludeMock?: boolean } = {},
-): InstanceBetStats {
-  const stats = emptyStats(range);
-  const daily = new Map<string, number>();
-  let oddsSum = 0;
-  let oddsCount = 0;
+            settled++;
+            const profit = Number(settlement.profit) || 0;
+            const stake = Number(row.stake) || 0;
+            netPnL += profit;
+            totalStakedSettled += stake;
 
-  for (const row of rows) {
-    if (options.excludeMock && isMockBet(row)) continue;
+            const result = settlement.result;
+            if (result === 'WON') won++;
+            else if (result === 'LOST') lost++;
+            else if (result === 'DRAW') draw++;
+            else if (result === 'VOID') voidCount++;
 
-    const placed = placeOf(row);
-    const createdInRange = inRange(row.createdAt, range.start, range.end);
-    if (createdInRange && placed === 'SUCCESS') {
-      stats.execution.betsPlaced += 1;
-      const odds = toNumber(row.odds);
-      if (odds != null) {
-        oddsSum += odds;
-        oddsCount += 1;
-      }
-      const settlementStatus = String(row.settlement?.status || '').trim().toUpperCase();
-      if (!row.settlement || settlementStatus === '' || settlementStatus === 'PENDING') {
-        stats.settlement.pending += 1;
-      }
-    } else if (createdInRange && placed === 'FAILED') {
-      stats.execution.submitFailed += 1;
+            if (settledAt) {
+                const key = utcDateKey(settledAt);
+                dailyPnL.set(key, (dailyPnL.get(key) ?? 0) + profit);
+            }
+        }
     }
 
-    const settlementStatus = String(row.settlement?.status || '').trim().toUpperCase();
-    if (settlementStatus !== 'SETTLED') continue;
-    if (!inRange(row.settlement?.settledAt, range.start, range.end)) continue;
+    const denom = betsPlaced + submitFailed;
+    const submitSuccessRate = denom > 0 ? round2((betsPlaced / denom) * 100) : 0;
+    const winDenom = won + lost;
+    const winRate = winDenom > 0 ? round2((won / winDenom) * 100) : 0;
+    const roi = totalStakedSettled > 0 ? round2((netPnL / totalStakedSettled) * 100) : 0;
+    const avgOdds = oddsCount > 0 ? round2(oddsSum / oddsCount) : 0;
 
-    stats.settlement.settled += 1;
-    const profit = toNumber(row.settlement?.profit) ?? 0;
-    const stake = toNumber(row.stake) ?? 0;
-    stats.performance.netPnL += profit;
-    stats.performance.totalStakedSettled += stake;
+    const sortedDays = [...dailyPnL.keys()].sort();
+    let cumulative = 0;
+    const cumulativePnLByDay = sortedDays.map((date) => {
+        const pnl = round2(dailyPnL.get(date) ?? 0);
+        cumulative = round2(cumulative + pnl);
+        return { date, pnl, cumulative };
+    });
 
-    const result = String(row.settlement?.result || '').trim().toUpperCase();
-    if (result === 'WON') stats.settlement.won += 1;
-    else if (result === 'LOST') stats.settlement.lost += 1;
-    else if (result === 'DRAW') stats.settlement.draw += 1;
-    else if (result === 'VOID') stats.settlement.void += 1;
-    else if (result === 'HALF_WON') stats.settlement.halfWon += 1;
-    else if (result === 'HALF_LOST') stats.settlement.halfLost += 1;
-    else if (result === 'CASHOUT') stats.settlement.cashout += 1;
-
-    const settledAt = toDate(row.settlement?.settledAt);
-    if (settledAt) {
-      const key = utcDateKey(settledAt);
-      daily.set(key, (daily.get(key) ?? 0) + profit);
-    }
-  }
-
-  const attempts = stats.execution.betsPlaced + stats.execution.submitFailed;
-  stats.execution.submitSuccessRate = attempts === 0 ? 0 : stats.execution.betsPlaced / attempts;
-  stats.performance.avgOdds = oddsCount === 0 ? 0 : oddsSum / oddsCount;
-  const decided = stats.settlement.won + stats.settlement.lost;
-  stats.performance.winRate = decided === 0 ? 0 : stats.settlement.won / decided;
-  stats.performance.roi =
-    stats.performance.totalStakedSettled === 0
-      ? 0
-      : (stats.performance.netPnL / stats.performance.totalStakedSettled) * 100;
-
-  let running = 0;
-  stats.series.cumulativePnLByDay = stats.series.cumulativePnLByDay.map((point) => {
-    running += daily.get(point.date) ?? 0;
-    return { date: point.date, pnl: running };
-  });
-
-  return stats;
+    return {
+        period: {
+            type: period.type,
+            start: period.start.toISOString(),
+            end: period.end.toISOString(),
+            offset: period.offset,
+        },
+        execution: {
+            betsPlaced,
+            submitFailed,
+            submitSuccessRate,
+        },
+        settlement: {
+            settled,
+            pending,
+            won,
+            lost,
+            draw,
+            void: voidCount,
+        },
+        performance: {
+            netPnL: round2(netPnL),
+            roi,
+            winRate,
+            avgOdds,
+            totalStakedSettled: round2(totalStakedSettled),
+        },
+        series: { cumulativePnLByDay },
+        definitions: STAT_DEFINITIONS,
+    };
 }
 
-export function templateSummary(stats: InstanceBetStats, minSettled = TEMPLATE_MIN_SETTLED): TemplateBetStats {
-  return {
-    period: stats.period,
-    settled: stats.settlement.settled,
-    winRate: stats.performance.winRate,
-    roi: stats.performance.roi,
-    performance: { netPnL: stats.performance.netPnL },
-    insufficientData: stats.settlement.settled < minSettled,
-  };
+export interface StatsScopeFilter {
+    botInstanceId?: Types.ObjectId | string;
+    botId?: Types.ObjectId | string;
+}
+
+/** Mongo $match for rows needed to compute stats in a period. */
+export function buildStatsFetchMatch(scope: StatsScopeFilter, period: StatsPeriod, options: AggregateBetStatsOptions = {}) {
+    const base: Record<string, unknown> = {};
+    if (scope.botInstanceId != null) base.botInstanceId = scope.botInstanceId;
+    if (scope.botId != null) base.botId = scope.botId;
+
+    const mockClause =
+        options.excludeMock === true ? { 'settlement.raw.mock': { $ne: true } } : {};
+
+    if (period.type === 'all') {
+        return { ...base, ...mockClause };
+    }
+
+    return {
+        ...base,
+        ...mockClause,
+        $or: [
+            { createdAt: { $gte: period.start, $lte: period.end } },
+            {
+                'settlement.status': 'SETTLED',
+                'settlement.settledAt': { $gte: period.start, $lte: period.end },
+            },
+        ],
+    };
 }

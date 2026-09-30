@@ -620,8 +620,14 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                     Parameters: {params.map((p: { paramName: string }) => p.paramName).join(', ')}
                                                 </p>
                                             )}
+                                            <div
+                                                className="mt-3"
+                                                onClick={(e) => e.stopPropagation()}
+                                                onKeyDown={(e) => e.stopPropagation()}
+                                            >
+                                                <TemplateStatsStrip botId={String(t._id)} compact />
+                                            </div>
                                         </button>
-                                        {isSelected ? <TemplateStatsStrip botId={String(t._id)} compact /> : null}
                                         </div>
                                     );
                                 })}
@@ -714,10 +720,14 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     ) : (
                                         <span className="text-gray-500">No template selected</span>
                                     )}
-                                    {formData.botId ? (
-                                        <TemplateStatsStrip botId={String(formData.botId)} compact />
-                                    ) : null}
                                 </div>
+                                {!initialData && formData.botId && (
+                                    <TemplateStatsStrip
+                                        botId={formData.botId}
+                                        compact
+                                        className="mt-2"
+                                    />
+                                )}
                             </section>
 
                     {formData.botId && (() => {

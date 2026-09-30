@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -8,6 +8,7 @@ import { io, Socket } from 'socket.io-client';
 import { IBotInstance } from '@/types';
 import CreateBotDialog from './CreateBotDialog';
 import MessageDialog from '@/components/MessageDialog';
+import InstanceStatsStrip from '@/components/InstanceStatsStrip';
 import { formatFilterSummary, templateSupportsTipFilters } from '@/lib/botInstanceFilters';
 
 interface LogEntry {
@@ -15,6 +16,8 @@ interface LogEntry {
     level: string;
     message: string;
 }
+
+const RECENT_LOGS_MAX = 3;
 
 export default function DashboardPage() {
     const { data: session, status } = useSession();
@@ -130,7 +133,6 @@ export default function DashboardPage() {
 }
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
-const RECENT_LOGS_MAX = 3;
 
 function BotCard({
     instance,
@@ -146,13 +148,11 @@ function BotCard({
     const isRunning = instance.status === 'RUNNING';
     const instanceId = instance._id as string;
 
+    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+    const [balanceError, setBalanceError] = useState<string | null>(null);
     const [recentLogs, setRecentLogs] = useState<LogEntry[]>([]);
     const socketRef = useRef<Socket | null>(null);
 
-    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-    const [balanceError, setBalanceError] = useState<string | null>(null);
-
-    // WebSocket: subscribe to logs for this instance, keep last 2–3
     useEffect(() => {
         setRecentLogs([]);
         socketRef.current = io(SOCKET_URL, {
@@ -319,15 +319,15 @@ function BotCard({
                         </p>
                     )}
                 </div>
-                {/* Recent logs (2–3) */}
+                <InstanceStatsStrip botInstanceId={instanceId} className="mt-3" />
                 <div className="mt-3 min-h-[4.5rem] rounded border border-gray-200 bg-gray-50 px-2 py-1.5 dark:border-gray-600 dark:bg-gray-700/50">
-                    <p className="text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">Recent logs</p>
+                    <p className="mb-1 text-xs font-medium text-gray-500 dark:text-gray-400">Recent logs</p>
                     {recentLogs.length === 0 ? (
                         <p className="text-xs text-gray-500 dark:text-gray-400">—</p>
                     ) : (
                         <ul className="space-y-0.5 overflow-hidden">
                             {recentLogs.map((log, i) => (
-                                <li key={i} className="text-xs text-gray-700 dark:text-gray-300 truncate" title={log.message}>
+                                <li key={i} className="truncate text-xs text-gray-700 dark:text-gray-300" title={log.message}>
                                     [{log.level}] {log.message}
                                 </li>
                             ))}

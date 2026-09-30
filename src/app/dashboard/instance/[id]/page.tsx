@@ -6,6 +6,7 @@ import { useSession } from 'next-auth/react';
 // We need to resolve the promise for params
 import { use } from 'react';
 import RealTimeMonitor from '@/components/RealTimeMonitor';
+import InstancePerformance from '@/components/InstancePerformance';
 import { IBotInstance } from '@/types';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
@@ -26,6 +27,7 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
     const [loading, setLoading] = useState(true);
     const [isLoadingBalance, setIsLoadingBalance] = useState(false);
     const [balanceError, setBalanceError] = useState<string | null>(null);
+    const [panel, setPanel] = useState<'monitor' | 'performance'>('monitor');
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -169,8 +171,30 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
                 </div>
             </header>
 
-            <main className="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
-                <RealTimeMonitor instanceId={id} onBalanceUpdated={fetchInstance} />
+            <main className="mx-auto max-w-7xl space-y-4 py-6 sm:px-6 lg:px-8">
+                <div className="inline-flex overflow-hidden rounded-md border border-gray-200 dark:border-gray-600" role="tablist" aria-label="Instance views">
+                    {(['monitor', 'performance'] as const).map((value, idx) => (
+                        <button
+                            key={value}
+                            type="button"
+                            role="tab"
+                            aria-selected={panel === value}
+                            onClick={() => setPanel(value)}
+                            className={`px-4 py-2 text-sm font-medium ${
+                                panel === value
+                                    ? 'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900'
+                                    : 'bg-white text-gray-700 hover:bg-gray-50 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700'
+                            } ${idx > 0 ? 'border-l border-gray-200 dark:border-gray-600' : ''}`}
+                        >
+                            {value === 'monitor' ? 'Monitor' : 'Performance'}
+                        </button>
+                    ))}
+                </div>
+                {panel === 'monitor' ? (
+                    <RealTimeMonitor instanceId={id} onBalanceUpdated={fetchInstance} />
+                ) : (
+                    <InstancePerformance instanceId={id} />
+                )}
             </main>
         </div>
     );

@@ -16,6 +16,13 @@ interface LogEntry {
     message: string;
 }
 
+interface BetSettlement {
+    status?: string | null;
+    result?: string | null;
+    profit?: number | null;
+    raw?: { mock?: boolean } | null;
+}
+
 interface BetEntry {
     _id: string;
     createdAt: string;
@@ -27,6 +34,8 @@ interface BetEntry {
     status: 'SUCCESS' | 'FAILED';
     balance?: number;
     orderId?: string;
+    odds?: number | null;
+    settlement?: BetSettlement | null;
 }
 
 interface TipEntry {
@@ -127,6 +136,8 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
                 failedCount: data.failedCount || 0,
                 balance: data.balance,
                 orderId: data.orderId,
+                odds: data.odds,
+                settlement: data.settlement,
             };
             setBets((prev) => [mapped as BetEntry, ...prev].slice(0, 20));
         });
@@ -187,6 +198,8 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
                         status: b.placeStatus ?? b.status,
                         balance: b.balance,
                         orderId: b.orderId,
+                        odds: b.odds,
+                        settlement: b.settlement,
                     } as BetEntry));
                     setBets(mapped);
                 }
@@ -212,6 +225,25 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
         } catch (e) {
             console.error('Failed to remove bet', e);
         }
+    };
+
+    const formatOdds = (odds: number | null | undefined) => {
+        if (odds == null || !Number.isFinite(Number(odds))) return '—';
+        return Number(odds).toFixed(2);
+    };
+
+    const formatProfit = (profit: number | null | undefined) => {
+        if (profit == null || !Number.isFinite(Number(profit))) return '—';
+        const n = Number(profit);
+        if (Math.abs(n) < 0.005) return '0.00';
+        return `${n > 0 ? '+' : ''}${n.toFixed(2)}`;
+    };
+
+    const formatSettlement = (settlement: BetSettlement | null | undefined) => {
+        if (!settlement?.status && !settlement?.result) return '—';
+        const result = settlement.result ? String(settlement.result) : '';
+        const status = settlement.status ? String(settlement.status) : '';
+        return [result, status].filter(Boolean).join(' · ');
     };
 
     const truncateOrderId = (id: string | undefined, maxLen = 20) => {
@@ -272,9 +304,12 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
                             <tr>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Time</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Order ID</th>
-                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Status</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Place</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Tip</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Stake</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Odds</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Profit</th>
+                                <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Settlement</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Balance</th>
                                 <th className="px-3 py-2 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Failures</th>
                                 {isAdmin && <th className="px-3 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-300">Actions</th>}
@@ -291,11 +326,19 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
                                         <span className={`inline-flex rounded-full px-2 text-xs font-semibold leading-5 ${bet.status === 'SUCCESS' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200'}`}>
                                             {bet.status}
                                         </span>
+                                        {bet.settlement?.raw?.mock ? (
+                                            <span className="ml-1 inline-flex rounded-full bg-amber-100 px-2 text-xs font-semibold leading-5 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                                mock
+                                            </span>
+                                        ) : null}
                                     </td>
                                     <td className="px-3 py-2">
                                         <div className="text-sm text-gray-700 dark:text-gray-200 truncate max-w-sm">{decodeTipMessage(bet.tip || bet.tip_id || '')}</div>
                                     </td>
                                     <td className={`px-3 py-2 font-medium text-gray-700 dark:text-gray-200`}>{bet.stake}</td>
+                                    <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{formatOdds(bet.odds)}</td>
+                                    <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{formatProfit(bet.settlement?.profit)}</td>
+                                    <td className="px-3 py-2 text-xs text-gray-600 dark:text-gray-300">{formatSettlement(bet.settlement)}</td>
                                     <td className="px-3 py-2 font-medium text-gray-700 dark:text-gray-200">{bet.balance != null ? `$${Number(bet.balance).toFixed(2)}` : '—'}</td>
                                     <td className={`px-3 py-2 font-medium ${bet.failedCount > 0 ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-300'}`}>{bet.failedCount}</td>
                                     {isAdmin && (
@@ -315,7 +358,7 @@ export default function RealTimeMonitor({ instanceId, onBalanceUpdated }: RealTi
                                 </tr>
                             ))}
                             {bets.length === 0 && (
-                                <tr><td colSpan={isAdmin ? 8 : 7} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
+                                <tr><td colSpan={isAdmin ? 11 : 10} className="px-3 py-4 text-center text-gray-500">No bets yet</td></tr>
                             )}
                         </tbody>
                     </table>

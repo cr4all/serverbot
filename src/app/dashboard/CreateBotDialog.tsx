@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { IBotInstance } from '@/types';
 import MessageDialog from '@/components/MessageDialog';
+import TemplateStatsStrip from '@/components/TemplateStatsStrip';
 import {
     ALLOWED_SPORTS,
     IBotTemplateRef,
@@ -553,8 +554,8 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                         (t as { templateStatus?: 'AVAILABLE' | 'MAINTENANCE' }).templateStatus === 'MAINTENANCE';
                                     const isBlockedForUser = isMaintenance && !isAdmin;
                                     return (
+                                        <div key={t._id}>
                                         <button
-                                            key={t._id}
                                             type="button"
                                             onClick={() => {
                                                 if (isBlockedForUser) {
@@ -620,6 +621,8 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                                 </p>
                                             )}
                                         </button>
+                                        {isSelected ? <TemplateStatsStrip botId={String(t._id)} compact /> : null}
+                                        </div>
                                     );
                                 })}
                             </div>
@@ -711,6 +714,9 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     ) : (
                                         <span className="text-gray-500">No template selected</span>
                                     )}
+                                    {formData.botId ? (
+                                        <TemplateStatsStrip botId={String(formData.botId)} compact />
+                                    ) : null}
                                 </div>
                             </section>
 

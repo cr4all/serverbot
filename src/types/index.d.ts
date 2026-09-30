@@ -1,5 +1,11 @@
 import { Types } from 'mongoose';
 
+export type {
+    InstanceBetStats,
+    TemplateBetStats,
+    StatsPeriodType,
+} from '../lib/bettingStats';
+
 // User Types
 export type UserRole = 'user' | 'admin';
 

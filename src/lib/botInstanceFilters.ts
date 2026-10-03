@@ -15,6 +15,7 @@ export const ALLOWED_SPORTS = [
     'Handball',
     'Cricket',
     'Esports',
+    'FIFA',
 ] as const;
 
 export type AllowedSport = (typeof ALLOWED_SPORTS)[number];

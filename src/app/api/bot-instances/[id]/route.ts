@@ -3,8 +3,9 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
-import Bot from '@/models/Bot';
+import '@/models/Bot';
 import { normalizeFilterConfig, validateFilterConfig } from '@/lib/botInstanceFilters';
+import { checkStartAllowed, notifyMainbotStatus, ownedInstanceQuery, validateLocale } from '@/lib/botInstanceService';
 
 export async function GET(
     request: Request,
@@ -58,30 +59,20 @@ export async function PATCH(
         const body = await request.json();
         await connectDB();
 
-        // Validate locale if being updated
-        const allowedLocales = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'];
-        if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
-            return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
+        const localeErr = validateLocale(body?.config);
+        if (localeErr) {
+            return NextResponse.json({ error: localeErr.error }, { status: localeErr.status });
         }
 
         // Ensure user owns the instance
-        const updateQuery: any = { _id: id };
-        if ((session.user as any).role !== 'admin') {
-            updateQuery.userId = (session.user as any).id;
-        }
+        const updateQuery: any = ownedInstanceQuery(id, (session.user as any).id, isAdmin);
 
         if (body?.status && String(body.status).toUpperCase() === 'RUNNING') {
-            const inst = await BotInstance.findOne(updateQuery).select('botId').lean<{ botId?: unknown } | null>();
-            if (!inst?.botId) {
-                return NextResponse.json({ error: 'Bot instance not found or unauthorized' }, { status: 404 });
-            }
-            const t = await Bot.findById(inst.botId)
-                .select('templateStatus name')
-                .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
-            if (!isAdmin && t?.templateStatus === 'MAINTENANCE') {
+            const blocked = await checkStartAllowed(updateQuery, isAdmin);
+            if (blocked) {
                 return NextResponse.json(
-                    { error: 'This bot template is under maintenance and cannot be started right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
-                    { status: 423 }
+                    blocked.code ? { error: blocked.error, code: blocked.code } : { error: blocked.error },
+                    { status: blocked.status }
                 );
             }
         }
@@ -108,18 +99,10 @@ export async function PATCH(
         if ('status' in body)
         {
             try {
-                const BOT_SERVER = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
-                let api_path = '';
-                if (body.status.toLowerCase() === 'running'){
-                    api_path = 'start';
-                }
-                else if (body.status.toLowerCase() === 'stopped'){
-                    api_path = 'stop';
-                }
-                const res = await fetch(`${BOT_SERVER}/bot/${api_path}/${id}`);
+                const res = await notifyMainbotStatus(id, body.status);
                 if (res.ok) {
                     return NextResponse.json(
-                        { error: `Bot instance is ${api_path}` },
+                        { error: `Bot instance is ${res.action}` },
                         { status: 200 }
                     );
                 }

@@ -23,8 +23,32 @@ const UserSchema = new mongoose.Schema(
             enum: ['user', 'admin'],
             default: 'user',
         },
+        telegramChatId: {
+            type: String,
+            unique: true,
+            sparse: true,
+        },
+        telegramLinkCode: {
+            type: String,
+        },
+        telegramLinkExpiresAt: {
+            type: Date,
+        },
     },
     { timestamps: true }
 );
 
-export default mongoose.models.User || mongoose.model('User', UserSchema);
+const ExistingUserModel = mongoose.models.User;
+if (ExistingUserModel) {
+    // Next.js dev HMR keeps the cached model; add new fields so strict mode keeps them.
+    const schema = (ExistingUserModel as any).schema;
+    if (!schema.path('telegramChatId')) {
+        schema.add({
+            telegramChatId: { type: String, unique: true, sparse: true },
+            telegramLinkCode: { type: String },
+            telegramLinkExpiresAt: { type: Date },
+        });
+    }
+}
+
+export default ExistingUserModel || mongoose.model('User', UserSchema);

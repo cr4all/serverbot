@@ -184,7 +184,7 @@ function BotCard({
         setBalanceError(null);
         setIsLoadingBalance(true);
         try {
-            const res = await fetch(`${SOCKET_URL}/bot/balance/${instanceId}`);
+            const res = await fetch(`/api/bot-instances/${instanceId}/balance`);
             if (!res.ok) {
                 const errText = await res.text().catch(() => '');
                 setBalanceError(errText || 'Failed to fetch balance.');

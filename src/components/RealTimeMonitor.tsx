@@ -324,7 +324,7 @@ export default function RealTimeMonitor({ instanceId, isInstanceRunning = false 
     // Function to fetch the current balance from the server
     const fetchBalance = async (signal?: AbortSignal) => {
         try {
-            const res = await fetch(`${SOCKET_URL}/bot/balance/${instanceId}`, { signal });
+            const res = await fetch(`/api/bot-instances/${instanceId}/balance`, { signal });
             if (!res.ok) {
                 console.error('Failed to fetch balance', res.status);
                 return;

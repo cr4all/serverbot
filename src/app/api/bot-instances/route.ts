@@ -2,11 +2,10 @@ import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
-import Bot from '@/models/Bot'; // ensure model is registered
-import User from '@/models/User'; // ensure model is registered
+import '@/models/Bot'; // ensure model is registered
+import '@/models/User'; // ensure model is registered
 import BotInstance from '@/models/BotInstance';
-import BotAssignment from '@/models/BotAssignment';
-import { normalizeFilterConfig, validateFilterConfig } from '@/lib/botInstanceFilters';
+import { createInstanceForUser } from '@/lib/botInstanceService';
 
 export async function GET(request: Request) {
     try {
@@ -47,63 +46,15 @@ export async function POST(request: Request) {
         const userId = (session.user as any).id;
         const body = await request.json();
 
-        await connectDB();
-
-        // Validate locale if provided
-        const allowedLocales = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'];
-        if (body?.config?.locale && !allowedLocales.includes(body.config.locale)) {
-            return NextResponse.json({ error: `Invalid locale. Allowed: ${allowedLocales.join(', ')}` }, { status: 400 });
+        const result = await createInstanceForUser({ userId, isAdmin, body });
+        if (!result.ok) {
+            return NextResponse.json(
+                result.code ? { error: result.error, code: result.code } : { error: result.error },
+                { status: result.status }
+            );
         }
 
-        // Validate that the requested botId is allowed for this user
-        if ((session.user as any).role !== 'admin') {
-            const botId = body.botId;
-            if (!botId) {
-                return NextResponse.json({ error: 'botId is required' }, { status: 400 });
-            }
-
-            const allowed = await BotAssignment.findOne({ botId, userId });
-            if (!allowed) {
-                return NextResponse.json({ error: 'Forbidden: bot template not assigned to user' }, { status: 403 });
-            }
-        }
-
-        if (body.botId) {
-            const t = await Bot.findById(body.botId)
-                .select('templateStatus name')
-                .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
-            if (!isAdmin && t?.templateStatus === 'MAINTENANCE') {
-                return NextResponse.json(
-                    { error: 'This bot template is under maintenance and cannot be created right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
-                    { status: 423 }
-                );
-            }
-        }
-
-        if (body.botId && body.config && typeof body.config === 'object') {
-            const bot = await Bot.findById(body.botId).select('botTier').lean();
-            if ((bot as { botTier?: string } | null)?.botTier === 'free') {
-                delete body.config.licenseKey;
-            }
-        }
-
-        if (body?.config && typeof body.config === 'object') {
-            body.config = normalizeFilterConfig(body.config);
-            const filterCheck = validateFilterConfig(body.config);
-            if (!filterCheck.ok) {
-                return NextResponse.json({ error: filterCheck.error }, { status: 400 });
-            }
-        }
-
-        // Force userId from session
-        const instanceData = { ...body, userId: userId, lastBalance: 0 };
-
-        const instance = await BotInstance.create(instanceData);
-
-        // Populate before returning to be helpful for the UI
-        await instance.populate('botId');
-
-        return NextResponse.json(instance, { status: 201 });
+        return NextResponse.json(result.instance, { status: 201 });
     } catch (error) {
         console.error('Error creating bot instance:', error);
         return NextResponse.json(

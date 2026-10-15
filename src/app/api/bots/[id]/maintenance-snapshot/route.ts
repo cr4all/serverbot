@@ -5,17 +5,17 @@ import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import Bot from '@/models/Bot';
 import BotInstance from '@/models/BotInstance';
+import { mainbotFetch } from '@/lib/mainbotClient';
 
 type Action = 'restart' | 'clear';
 
 async function startInstances(instanceIds: string[]) {
   if (instanceIds.length === 0) return { matched: 0, started: 0 };
-  const BOT_SERVER = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
   let started = 0;
   await Promise.all(
     instanceIds.map(async (id) => {
       try {
-        const res = await fetch(`${BOT_SERVER}/bot/start/${id}`);
+        const res = await mainbotFetch(`/bot/start/${id}`);
         if (res.ok) started += 1;
       } catch (e) {
         console.error('Failed to start instance from snapshot', id, e);

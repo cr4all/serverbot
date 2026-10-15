@@ -5,6 +5,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ChangePasswordDialog from '@/app/components/ChangePasswordDialog';
+import TelegramLinkDialog from '@/app/components/TelegramLinkDialog';
 
 export default function DashboardLayout({
     children,
@@ -13,6 +14,7 @@ export default function DashboardLayout({
 }) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [isTelegramOpen, setIsTelegramOpen] = useState(false);
     const { data: session } = useSession();
     const pathname = usePathname();
     const dashboardActive =
@@ -56,6 +58,9 @@ export default function DashboardLayout({
                             <div className="flex items-center gap-4">
                                 {/* Desktop Right Links */}
                                 <div className="hidden sm:flex sm:items-center">
+                                    <button onClick={() => setIsTelegramOpen(true)} className="mr-4 inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white">
+                                        Telegram 연결
+                                    </button>
                                     <button onClick={() => setIsChangePasswordOpen(true)} className="mr-4 inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white">
                                         Change Password
                                     </button>
@@ -131,6 +136,12 @@ export default function DashboardLayout({
                                 </Link>
                             )}
                             <button
+                                onClick={() => { setIsMenuOpen(false); setIsTelegramOpen(true); }}
+                                className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
+                            >
+                                Telegram 연결
+                            </button>
+                            <button
                                 onClick={() => { setIsMenuOpen(false); setIsChangePasswordOpen(true); }}
                                 className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                             >
@@ -156,6 +167,9 @@ export default function DashboardLayout({
             {/* Change Password Dialog */}
             {isChangePasswordOpen && (
                 <ChangePasswordDialog open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />
+            )}
+            {isTelegramOpen && (
+                <TelegramLinkDialog open={isTelegramOpen} onClose={() => setIsTelegramOpen(false)} />
             )}
         </div>
     );

@@ -43,7 +43,7 @@ export function templateUsesBookieConfig(template: IBotTemplateRef | null | unde
 }
 
 /** Templates that start Chrome via worker-pool (`CHROME_POOLS`). */
-const CHROME_POOL_TEMPLATE_TYPES = new Set(['BET365', 'MYSTAKE', 'SUPERBET', 'STOIXIMAN', 'NOVIBET']);
+const CHROME_POOL_TEMPLATE_TYPES = new Set(['BET365', 'MYSTAKE', 'SUPERBET', 'STOIXIMAN', 'NOVIBET', 'GOLDBET']);
 
 export function templateUsesChromePool(template: IBotTemplateRef | null | undefined): boolean {
     if (!template) return false;

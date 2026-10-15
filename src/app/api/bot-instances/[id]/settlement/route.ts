@@ -3,8 +3,7 @@ import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
-
-const BOT_SERVER = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
+import { mainbotFetch } from '@/lib/mainbotClient';
 
 export async function POST(
     _request: Request,
@@ -33,7 +32,7 @@ export async function POST(
             );
         }
 
-        const res = await fetch(`${BOT_SERVER}/bot/settlement/${id}`, { method: 'POST' });
+        const res = await mainbotFetch(`/bot/settlement/${id}`, { method: 'POST' });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
             return NextResponse.json(

@@ -7,6 +7,7 @@ import Bot from '@/models/Bot';
 import BotAssignment from '@/models/BotAssignment';
 import User from '@/models/User';
 import BotInstance from '@/models/BotInstance';
+import { mainbotFetch } from '@/lib/mainbotClient';
 
 async function stopRunningInstancesForTemplate(templateId: string) {
     const running = await BotInstance.find({ botId: templateId, status: 'RUNNING' })
@@ -15,12 +16,11 @@ async function stopRunningInstancesForTemplate(templateId: string) {
     const ids = running.map((r) => String(r._id));
     if (ids.length === 0) return { matched: 0, stopped: 0 };
 
-    const BOT_SERVER = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
     let stopped = 0;
     await Promise.all(
         ids.map(async (id) => {
             try {
-                const res = await fetch(`${BOT_SERVER}/bot/stop/${id}`);
+                const res = await mainbotFetch(`/bot/stop/${id}`);
                 if (res.ok) stopped += 1;
             } catch (e) {
                 console.error('Failed to stop instance for maintenance', id, e);

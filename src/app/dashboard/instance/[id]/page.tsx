@@ -10,8 +10,6 @@ import InstancePerformance from '@/components/InstancePerformance';
 import InstanceStatsStrip from '@/components/InstanceStatsStrip';
 import { IBotInstance } from '@/types';
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
-
 type MonitorTab = 'monitor' | 'performance';
 
 function ChevronLeftIcon({ className }: { className?: string }) {
@@ -83,7 +81,7 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
         setBalanceError(null);
         setIsLoadingBalance(true);
         try {
-            const res = await fetch(`${SOCKET_URL}/bot/balance/${id}`);
+            const res = await fetch(`/api/bot-instances/${id}/balance`);
             if (!res.ok) {
                 const errText = await res.text().catch(() => '');
                 setBalanceError(errText || 'Failed to fetch balance.');

@@ -54,7 +54,7 @@ export default function TelegramLinkDialog({ open, onClose }: { open: boolean; o
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-xl dark:bg-gray-800">
-                <h3 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Telegram 연결</h3>
+                <h3 className="mb-4 text-xl font-bold text-gray-900 dark:text-white">Connect Telegram</h3>
 
                 <p className="mb-4 text-sm text-gray-700 dark:text-gray-300">
                     상태: {state == null ? "확인 중..." : state.linked ? "연결됨" : "연결 안 됨"}

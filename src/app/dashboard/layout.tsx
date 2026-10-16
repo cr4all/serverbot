@@ -59,7 +59,7 @@ export default function DashboardLayout({
                                 {/* Desktop Right Links */}
                                 <div className="hidden sm:flex sm:items-center">
                                     <button onClick={() => setIsTelegramOpen(true)} className="mr-4 inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white">
-                                        Telegram 연결
+                                        Connect Telegram
                                     </button>
                                     <button onClick={() => setIsChangePasswordOpen(true)} className="mr-4 inline-flex items-center px-1 pt-1 text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-200 dark:hover:text-white">
                                         Change Password
@@ -139,7 +139,7 @@ export default function DashboardLayout({
                                 onClick={() => { setIsMenuOpen(false); setIsTelegramOpen(true); }}
                                 className="block w-full text-left border-l-4 border-transparent py-2 pl-3 pr-4 text-base font-medium text-gray-500 hover:border-gray-300 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800"
                             >
-                                Telegram 연결
+                                Connect Telegram
                             </button>
                             <button
                                 onClick={() => { setIsMenuOpen(false); setIsChangePasswordOpen(true); }}

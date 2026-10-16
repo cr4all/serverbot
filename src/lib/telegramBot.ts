@@ -173,7 +173,7 @@ async function cmdStart(ctx: Ctx) {
     } else {
         await reply(
             ctx,
-            '이 채팅은 아직 계정과 연결되지 않았습니다.\n대시보드에서 "Telegram 연결"을 눌러 코드를 받은 뒤 /link 123456 을 보내세요.'
+            '이 채팅은 아직 계정과 연결되지 않았습니다.\n대시보드에서 "Connect Telegram"을 눌러 코드를 받은 뒤 /link 123456 을 보내세요.'
         );
     }
 }

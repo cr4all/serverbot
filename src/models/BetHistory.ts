@@ -92,6 +92,18 @@ const BetHistorySchema = new mongoose.Schema(
             default: null,
         },
 
+        /** Distributed Surebet: links the two legs of one execution. Absent for legacy bets. */
+        executionId: {
+            type: String,
+        },
+        legSide: {
+            type: String,
+            enum: ['A', 'B'],
+        },
+        tipRef: {
+            type: String,
+        },
+
         settlement: {
             type: SettlementSchema,
             default: undefined,
@@ -106,5 +118,6 @@ BetHistorySchema.index({ botInstanceId: 1, tip_id: 1 }, { unique: true });
 BetHistorySchema.index({ botInstanceId: 1, 'settlement.status': 1, placeStatus: 1, createdAt: -1 });
 BetHistorySchema.index({ botId: 1, 'settlement.status': 1, 'settlement.settledAt': -1 });
 BetHistorySchema.index({ orderId: 1 }, { sparse: true });
+BetHistorySchema.index({ executionId: 1, legSide: 1 }, { sparse: true });
 
 export default mongoose.models.BetHistory || mongoose.model('BetHistory', BetHistorySchema);

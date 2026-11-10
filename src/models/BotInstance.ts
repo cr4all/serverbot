@@ -42,6 +42,11 @@ const BotInstanceSchema = new mongoose.Schema(
         lastHeartbeat: {
             type: Date,
         },
+        /** Distributed Surebet: VPS that runs this instance (absent = legacy, runs anywhere). */
+        vpsId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'VpsNode',
+        },
     },
     { timestamps: true }
 );

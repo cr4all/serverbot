@@ -23,6 +23,18 @@ const UserSchema = new mongoose.Schema(
             enum: ['user', 'admin'],
             default: 'user',
         },
+        /** Distributed Surebet: service plan. Free-form until plan tiers are decided. */
+        plan: {
+            type: String,
+            trim: true,
+            default: 'free',
+        },
+        /** Distributed Surebet: account state. Existing users default to 'active' (not enforced yet). */
+        status: {
+            type: String,
+            enum: ['active', 'pending', 'suspended'],
+            default: 'active',
+        },
     },
     { timestamps: true }
 );

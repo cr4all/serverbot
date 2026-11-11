@@ -232,6 +232,38 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                 config,
             };
 
+            // Distributed Surebet bookmakers: the credentials typed above are stored ENCRYPTED in
+            // config.account by the API (decision D31/D32) and never as plain text in config.
+            // On edit, an empty password keeps the previously stored secret.
+            const templateType = String(
+                (selectedTemplate as { type?: string } | undefined)?.type ??
+                    (initialData?.botId as { type?: string } | undefined)?.type ??
+                    ''
+            ).toUpperCase();
+            const isDistributedBookmaker = templateType === 'BETONLINE' || templateType === 'PS3838';
+
+            if (isDistributedBookmaker) {
+                const username = String(formData.config.username ?? '').trim();
+                const password = String(formData.config.password ?? '');
+                if (!initialData && (!username || !password)) {
+                    setMessageDialog({
+                        open: true,
+                        title: 'Account required',
+                        message: `${templateType} requires the account username and password you use on that site.`,
+                        variant: 'warning',
+                    });
+                    setLoading(false);
+                    return;
+                }
+
+                if (username) {
+                    body.account = { username, password };
+                }
+
+                delete config.username;
+                delete config.password;
+            }
+
             if (!initialData) {
                 body.botId = botIdToUse;
                 body.status = 'STOPPED';
@@ -674,7 +706,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                     <input
                                         type="password"
                                         name="password"
-                                        required
+                                        required={!initialData}
                                         value={formData.config.password}
                                         onChange={handleChange}
                                         className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"

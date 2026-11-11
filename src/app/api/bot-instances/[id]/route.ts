@@ -5,6 +5,7 @@ import connectDB from '@/lib/db';
 import BotInstance from '@/models/BotInstance';
 import Bot from '@/models/Bot';
 import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
+import { buildAccountConfig, stripAccountSecret } from '@/lib/credentialsCrypto';
 
 export async function GET(
     request: Request,
@@ -33,7 +34,7 @@ export async function GET(
             );
         }
 
-        return NextResponse.json(instance);
+        return NextResponse.json(stripAccountSecret(instance.toObject()));
     } catch (error) {
         console.error('Error fetching bot instance:', error);
         return NextResponse.json(
@@ -92,6 +93,23 @@ export async function PATCH(
             }
         }
 
+        // Betting-site credentials: encrypt on save, keep the old secret when the password is left blank.
+        const accountInput = body?.account ?? body?.config?.account ?? null;
+        if (body) delete body.account;
+        if (accountInput) {
+            const current = await BotInstance.findOne(updateQuery).select('config.account').lean<any>();
+            try {
+                const account = buildAccountConfig(accountInput, current?.config?.account ?? null);
+                body.config = { ...(body.config ?? current?.config ?? {}), ...(account ? { account } : {}) };
+                if (!account) delete body.config.account;
+            } catch (err) {
+                return NextResponse.json(
+                    { error: 'Account credentials cannot be stored: ' + ((err as Error)?.message ?? 'server misconfigured') },
+                    { status: 500 }
+                );
+            }
+        }
+
         const instance = await BotInstance.findOneAndUpdate(
             updateQuery,
             { $set: body },
@@ -134,7 +152,7 @@ export async function PATCH(
             );
         }
 
-        return NextResponse.json(instance);
+        return NextResponse.json(stripAccountSecret(instance.toObject()));
     } catch (error) {
         console.error('Error updating bot instance:', error);
         return NextResponse.json(

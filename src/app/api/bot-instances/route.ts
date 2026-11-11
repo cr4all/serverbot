@@ -7,6 +7,7 @@ import User from '@/models/User'; // ensure model is registered
 import BotInstance from '@/models/BotInstance';
 import BotAssignment from '@/models/BotAssignment';
 import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
+import { buildAccountConfig, stripAccountSecret } from '@/lib/credentialsCrypto';
 
 export async function GET(request: Request) {
     try {
@@ -25,7 +26,8 @@ export async function GET(request: Request) {
                 .populate('botId') // Populate bot template info
                 .sort({ createdAt: -1 });
 
-        return NextResponse.json(instances);
+        // Never send the encrypted account secret back to the browser.
+        return NextResponse.json(instances.map((i) => stripAccountSecret(i.toObject())));
     } catch (error) {
         console.error('Error fetching bot instances:', error);
         return NextResponse.json(
@@ -85,15 +87,32 @@ export async function POST(request: Request) {
             }
         }
 
+        // Betting-site credentials are entered by the client and stored encrypted (D31/D32).
+        const accountInput = body?.account ?? body?.config?.account ?? null;
+        delete body.account;
+
+        let account = null;
+        try {
+            account = buildAccountConfig(accountInput, null);
+        } catch (err) {
+            return NextResponse.json(
+                { error: 'Account credentials cannot be stored: ' + ((err as Error)?.message ?? 'server misconfigured') },
+                { status: 500 }
+            );
+        }
+
         // Force userId from session
-        const instanceData = { ...body, userId: userId, lastBalance: 0 };
+        const instanceData: any = { ...body, userId: userId, lastBalance: 0 };
+        if (account) {
+            instanceData.config = { ...(body.config ?? {}), account };
+        }
 
         const instance = await BotInstance.create(instanceData);
 
         // Populate before returning to be helpful for the UI
         await instance.populate('botId');
 
-        return NextResponse.json(instance, { status: 201 });
+        return NextResponse.json(stripAccountSecret(instance.toObject()), { status: 201 });
     } catch (error) {
         console.error('Error creating bot instance:', error);
         return NextResponse.json(

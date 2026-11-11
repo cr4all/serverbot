@@ -40,6 +40,46 @@ export function readVpsAddresses(env: NodeJS.ProcessEnv = process.env): Partial<
     return result;
 }
 
+/** Everything the dashboard needs to reach one VPS. */
+export interface VpsConnection {
+    /** host or host:port of the VPS agent. */
+    address: string;
+    /** Username the client presents to that VPS. */
+    username: string;
+    /** Password the client presents to that VPS. Never logged, never sent to the browser. */
+    password: string;
+}
+
+/**
+ * Reads the login this client uses for one VPS.
+ * Variables: VPS_<ROLE>_ADDRESS, VPS_<ROLE>_USERNAME, VPS_<ROLE>_PASSWORD.
+ * Returns null when the role is not configured at all; throws when it is half configured.
+ */
+export function readVpsConnection(role: VpsRole, env: NodeJS.ProcessEnv = process.env): VpsConnection | null {
+    if (!VPS_ROLES.includes(role)) {
+        throw new Error(`unknown VPS role: ${role}`);
+    }
+
+    const address = String(env[`VPS_${role}_ADDRESS`] ?? '').trim();
+    const username = String(env[`VPS_${role}_USERNAME`] ?? '').trim();
+    const password = String(env[`VPS_${role}_PASSWORD`] ?? '');
+
+    if (!address && !username && !password) return null;
+    if (!isValidVpsAddress(address)) {
+        throw new Error(`VPS_${role}_ADDRESS must be host or host:port`);
+    }
+    if (!username || !password) {
+        throw new Error(`VPS_${role}_USERNAME and VPS_${role}_PASSWORD are required when the address is set`);
+    }
+
+    return { address, username, password };
+}
+
+/** Both VPS connections, when fully configured. */
+export function readAllVpsConnections(env: NodeJS.ProcessEnv = process.env): VpsConnection[] {
+    return VPS_ROLES.map((role) => readVpsConnection(role, env)).filter((c): c is VpsConnection => c !== null);
+}
+
 /** Address of one VPS, or null when it is not configured. */
 export function vpsAddressFor(role: VpsRole, env: NodeJS.ProcessEnv = process.env): string | null {
     if (!VPS_ROLES.includes(role)) {

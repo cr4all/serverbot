@@ -10,6 +10,8 @@ import {
     hasBothVpsAddresses,
     isValidVpsAddress,
     describeVpsAddresses,
+    readVpsConnection,
+    readAllVpsConnections,
 } from './vpsConfig.ts';
 
 const env = {
@@ -66,5 +68,46 @@ describe('vpsConfig', () => {
     it('never contains a credential', () => {
         const text = JSON.stringify(describeVpsAddresses(env));
         assert.equal(/password|secret|token/i.test(text), false);
+    });
+});
+
+describe('vps credentials', () => {
+    const full = {
+        VPS_BETONLINE_ADDRESS: 'remote.pjoplus.com.br:55317',
+        VPS_BETONLINE_USERNAME: 'client-a',
+        VPS_BETONLINE_PASSWORD: 'pw-a',
+        VPS_PS3838_ADDRESS: '168.121.74.26',
+        VPS_PS3838_USERNAME: 'client-a',
+        VPS_PS3838_PASSWORD: 'pw-b',
+    } as NodeJS.ProcessEnv;
+
+    it('reads address, username and password', () => {
+        assert.deepEqual(readVpsConnection('BETONLINE', full), {
+            address: 'remote.pjoplus.com.br:55317',
+            username: 'client-a',
+            password: 'pw-a',
+        });
+    });
+
+    it('returns null when a role is not configured', () => {
+        assert.equal(readVpsConnection('PS3838', {} as NodeJS.ProcessEnv), null);
+    });
+
+    it('rejects a half configured role instead of silently disabling it', () => {
+        assert.throws(
+            () => readVpsConnection('BETONLINE', { VPS_BETONLINE_ADDRESS: 'h:1' } as NodeJS.ProcessEnv),
+            /USERNAME and VPS_BETONLINE_PASSWORD are required/
+        );
+        assert.throws(
+            () => readVpsConnection('BETONLINE', { VPS_BETONLINE_USERNAME: 'u', VPS_BETONLINE_PASSWORD: 'p' } as NodeJS.ProcessEnv),
+            /VPS_BETONLINE_ADDRESS/
+        );
+    });
+
+    it('lists only fully configured connections', () => {
+        assert.equal(readAllVpsConnections(full).length, 2);
+        assert.equal(readAllVpsConnections({} as NodeJS.ProcessEnv).length, 0);
+        // Half configured is an error, not a silent omission.
+        assert.throws(() => readAllVpsConnections({ VPS_PS3838_ADDRESS: 'h:1' } as NodeJS.ProcessEnv), /VPS_PS3838_USERNAME/);
     });
 });

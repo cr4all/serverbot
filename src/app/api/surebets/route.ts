@@ -1,7 +1,13 @@
 import { NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
-import { HubError, listOpenTips, listExecutions, runTip, isHubConfigured } from '@/lib/hubClient';
+import { HubError, listOpenTips, isHubConfigured } from '@/lib/hubClient';
+import { createVpsClient } from '@/lib/vpsClient';
+import { executeTip } from '@/lib/executionService';
+import { readVpsConnection } from '@/lib/vpsConfig';
+import connectDB from '@/lib/db';
+import ClientExecution from '@/models/ClientExecution';
+import type { ExecutionRecord } from '@/lib/executionService';
 
 /** Returns open tips plus this client's recent executions. The hub token stays on the server. */
 export async function GET() {
@@ -19,7 +25,12 @@ export async function GET() {
 
     const clientId = (session.user as { id?: string }).id ?? '';
     try {
-        const [tips, executions] = await Promise.all([listOpenTips(50), listExecutions(clientId, 50)]);
+        const tips = await listOpenTips(50);
+        let executions: unknown[] = [];
+        if (clientId) {
+            await connectDB();
+            executions = await ClientExecution.find({ clientId }).sort({ createdAt: -1 }).limit(50).lean();
+        }
         return NextResponse.json({ configured: true, tips, executions });
     } catch (err) {
         const status = err instanceof HubError ? err.status : 502;
@@ -50,11 +61,66 @@ export async function POST(request: Request) {
         return NextResponse.json({ error: 'stake must be a positive number' }, { status: 400 });
     }
 
+    // The client runs the bet on its own VPSs; the hub only supplied the tip.
+    let tip;
     try {
-        const result = await runTip(tipId, clientId, stake);
-        return NextResponse.json(result, { status: result.started ? 202 : 409 });
+        const tips = await listOpenTips(200);
+        tip = tips.find((t) => t.tipId === tipId);
     } catch (err) {
         const status = err instanceof HubError ? err.status : 502;
         return NextResponse.json({ error: (err as Error)?.message ?? 'hub request failed' }, { status });
+    }
+
+    if (!tip) {
+        return NextResponse.json({ error: 'tip not found or expired' }, { status: 404 });
+    }
+
+    let connections;
+    try {
+        connections = {
+            BETONLINE: readVpsConnection('BETONLINE'),
+            PS3838: readVpsConnection('PS3838'),
+        };
+    } catch (err) {
+        return NextResponse.json({ error: (err as Error)?.message ?? 'VPS configuration is invalid' }, { status: 500 });
+    }
+
+    const vps: Record<string, ReturnType<typeof createVpsClient>> = {};
+    if (connections.BETONLINE) vps.BETONLINE = createVpsClient({ connection: connections.BETONLINE });
+    if (connections.PS3838) vps.PS3838 = createVpsClient({ connection: connections.PS3838 });
+
+    try {
+        const record = await executeTip({
+            tipId: tip.tipId,
+            clientId,
+            stake,
+            legs: tip.legs.map((leg) => ({
+                bookmaker: String(leg.bookmaker).toUpperCase(),
+                eventName: leg.eventName,
+                sport: leg.sport,
+                marketType: leg.marketType,
+                period: leg.period,
+                line: leg.line,
+                selection: leg.selection,
+                odds: leg.odds,
+                stakeRatio: leg.stakeRatio,
+            })),
+            deps: {
+                vps: vps as never,
+                save: async (record: ExecutionRecord) => {
+                    await connectDB();
+                    await ClientExecution.updateOne(
+                        { executionId: record.executionId },
+                        { $set: { ...record, clientId } },
+                        { upsert: true }
+                    );
+                },
+            },
+        });
+
+        const started = record.state !== 'ABORTED';
+        return NextResponse.json(record, { status: started ? 202 : 409 });
+    } catch (err) {
+        return NextResponse.json({ error: (err as Error)?.message ?? 'execution failed' }, { status: 502 });
     }
 }

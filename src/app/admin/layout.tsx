@@ -16,6 +16,13 @@ export default function AdminLayout({
     const pathname = usePathname();
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+    const [isAdminConsolePort, setIsAdminConsolePort] = useState(false);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setIsAdminConsolePort(window.location.port === '3100');
+        }
+    }, []);
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -36,6 +43,7 @@ export default function AdminLayout({
     const navItems = [
         { name: 'Overview', href: '/admin' },
         { name: 'Users', href: '/admin/users' },
+        { name: 'VPS', href: '/admin/vps' },
         { name: 'Bot Templates', href: '/admin/bots' },
         { name: 'All Instances', href: '/admin/instances' },
     ];
@@ -76,9 +84,11 @@ export default function AdminLayout({
                                 >
                                     Sign Out
                                 </button>
-                                <Link href="/dashboard" className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
-                                    Exit Admin
-                                </Link>
+                                {!isAdminConsolePort ? (
+                                    <Link href="/dashboard" className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                                        Exit Admin
+                                    </Link>
+                                ) : null}
                                 <div className="flex items-center sm:hidden">
                                     <button
                                         onClick={() => setIsMenuOpen(!isMenuOpen)}

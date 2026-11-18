@@ -138,7 +138,11 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             const res = await fetch('/api/bots');
             if (res.ok) {
                 const data = await res.json();
-                setTemplates(data);
+                // Surebet books are configured as one desk (both credentials), not as separate bots.
+                const list = (Array.isArray(data) ? data : []).filter(
+                    (t: { type?: string }) => !['BETONLINE', 'PS3838'].includes(String(t.type ?? '').toUpperCase())
+                );
+                setTemplates(list);
             }
         } catch (e) {
             console.error(e);
@@ -243,19 +247,9 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             const isDistributedBookmaker = templateType === 'BETONLINE' || templateType === 'PS3838';
 
             if (isDistributedBookmaker) {
+                // Optional: VPS env can own logins; dashboard-stored account is not required.
                 const username = String(formData.config.username ?? '').trim();
                 const password = String(formData.config.password ?? '');
-                if (!initialData && (!username || !password)) {
-                    setMessageDialog({
-                        open: true,
-                        title: 'Account required',
-                        message: `${templateType} requires the account username and password you use on that site.`,
-                        variant: 'warning',
-                    });
-                    setLoading(false);
-                    return;
-                }
-
                 if (username) {
                     body.account = { username, password };
                 }
@@ -306,6 +300,13 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
     const isFreeTier = resolveBotTier(templates, formData.botId, initialData) === 'free';
     const isCreateFlow = !initialData;
     const isAdmin = (session?.user as any)?.role === 'admin';
+    const isDistributedBookmaker = ['BETONLINE', 'PS3838'].includes(
+        String(
+            (selectedTemplate as { type?: string } | undefined)?.type ??
+                (initialData?.botId as { type?: string } | undefined)?.type ??
+                ''
+        ).toUpperCase()
+    );
 
     const StepIndicator = () =>
         isCreateFlow ? (
@@ -714,19 +715,21 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                 </div>
                             </>
 
-                            <div className="sm:col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Amount</label>
-                                <input
-                                    type="number"
-                                    name="stake"
-                                    step="any"
-                                    min="0"
-                                    placeholder="Input stake amount"
-                                    value={formData.config.stake}
-                                    onChange={handleChange}
-                                    className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                            </div>
+                            {!isDistributedBookmaker && (
+                                <div className="sm:col-span-2">
+                                    <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">Stake Amount</label>
+                                    <input
+                                        type="number"
+                                        name="stake"
+                                        step="any"
+                                        min="0"
+                                        placeholder="Input stake amount"
+                                        value={formData.config.stake}
+                                        onChange={handleChange}
+                                        className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                    />
+                                </div>
+                            )}
 
                             {!isFreeTier && (
                                 <div className="sm:col-span-2 border-t border-gray-100 pt-4 dark:border-gray-700">

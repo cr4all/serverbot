@@ -57,6 +57,8 @@ export interface IBotInstance {
     config: Record<string, any> & { locale?: Locale };
     status: BotStatus;
     lastHeartbeat?: Date;
+    /** Admin-managed VPS agent for this bookmaker leg (surebet desks). */
+    vpsId?: string | Types.ObjectId;
     createdAt: Date;
     updatedAt: Date;
 }

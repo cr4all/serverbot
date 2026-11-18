@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { isValidLocale } from '@/lib/locales';
 import './Bot';
 import './User';
+import './VpsNode';
 const BotInstanceSchema = new mongoose.Schema(
     {
         botId: {

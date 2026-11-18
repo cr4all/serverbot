@@ -15,6 +15,16 @@ const ExecutionLegSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const RebuildSchema = new mongoose.Schema(
+    {
+        originalLine: { type: Number, default: null },
+        appliedLine: { type: Number, required: true },
+        profitPercent: { type: Number, default: 0 },
+        reason: { type: String, default: '' },
+    },
+    { _id: false }
+);
+
 const ClientExecutionSchema = new mongoose.Schema(
     {
         executionId: { type: String, required: true, unique: true },
@@ -24,6 +34,9 @@ const ClientExecutionSchema = new mongoose.Schema(
         state: { type: String, required: true },
         note: { type: String, default: null },
         legs: { type: [ExecutionLegSchema], default: [] },
+        /** Nearby-line rebuild. Persisted always; API may omit when SUREBET_SHOW_REBUILT is unset. */
+        rebuilt: { type: Boolean, default: false },
+        rebuild: { type: RebuildSchema, default: null },
     },
     { timestamps: true }
 );

@@ -15,14 +15,14 @@ import {
 } from './vpsConfig.ts';
 
 const env = {
-    VPS_BETONLINE_ADDRESS: 'remote.pjoplus.com.br:55317',
+    VPS_BETONLINE_ADDRESS: '168.121.74.27',
     VPS_PS3838_ADDRESS: '168.121.74.26',
 } as NodeJS.ProcessEnv;
 
 describe('vpsConfig', () => {
     it('reads both addresses from env', () => {
         assert.deepEqual(readVpsAddresses(env), {
-            BETONLINE: 'remote.pjoplus.com.br:55317',
+            BETONLINE: '168.121.74.27',
             PS3838: '168.121.74.26',
         });
     });
@@ -33,7 +33,7 @@ describe('vpsConfig', () => {
     });
 
     it('accepts a host with or without a port', () => {
-        for (const good of ['168.121.74.26', 'remote.pjoplus.com.br:55317', 'host:1', 'host:65535']) {
+        for (const good of ['168.121.74.26', '168.121.74.27', 'host:1', 'host:65535']) {
             assert.equal(isValidVpsAddress(good), true, good);
         }
     });
@@ -49,7 +49,7 @@ describe('vpsConfig', () => {
     });
 
     it('reads one role', () => {
-        assert.equal(vpsAddressFor('BETONLINE', env), 'remote.pjoplus.com.br:55317');
+        assert.equal(vpsAddressFor('BETONLINE', env), '168.121.74.27');
         assert.equal(vpsAddressFor('PS3838', {} as NodeJS.ProcessEnv), null);
     });
 
@@ -60,7 +60,7 @@ describe('vpsConfig', () => {
 
     it('describes both roles for the dashboard', () => {
         assert.deepEqual(describeVpsAddresses(env), [
-            { role: 'BETONLINE', address: 'remote.pjoplus.com.br:55317' },
+            { role: 'BETONLINE', address: '168.121.74.27' },
             { role: 'PS3838', address: '168.121.74.26' },
         ]);
     });
@@ -73,7 +73,7 @@ describe('vpsConfig', () => {
 
 describe('vps credentials', () => {
     const full = {
-        VPS_BETONLINE_ADDRESS: 'remote.pjoplus.com.br:55317',
+        VPS_BETONLINE_ADDRESS: '168.121.74.27',
         VPS_BETONLINE_USERNAME: 'client-a',
         VPS_BETONLINE_PASSWORD: 'pw-a',
         VPS_PS3838_ADDRESS: '168.121.74.26',
@@ -83,7 +83,7 @@ describe('vps credentials', () => {
 
     it('reads address, username and password', () => {
         assert.deepEqual(readVpsConnection('BETONLINE', full), {
-            address: 'remote.pjoplus.com.br:55317',
+            address: '168.121.74.27',
             username: 'client-a',
             password: 'pw-a',
         });

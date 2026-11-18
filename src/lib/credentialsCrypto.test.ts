@@ -38,8 +38,10 @@ describe('credentialsCrypto', () => {
     it('refuses a tampered payload', () => {
         const enc = encryptSecret('secret', KEY);
         const parts = enc.split(':');
+        // Flip the first auth-tag / ciphertext character deterministically (avoid flaky padding-edge flips).
         const body = parts[4];
-        const tampered = `${parts[0]}:${parts[1]}:${parts[2]}:${parts[3]}:${body.slice(0, -2)}${body.endsWith('A') ? 'B' : 'A'}${body.slice(-1)}`;
+        const flip = body[0] === 'A' ? 'B' : 'A';
+        const tampered = `${parts[0]}:${parts[1]}:${parts[2]}:${parts[3]}:${flip}${body.slice(1)}`;
         assert.throws(() => decryptSecret(tampered, KEY));
     });
 
@@ -78,12 +80,13 @@ describe('credentialsCrypto', () => {
         assert.equal(buildAccountConfig({ username: 'u', password: '' }, null, env), null);
     });
 
-    it('strips the secret before sending an instance to the browser', () => {
-        const instance = { name: 'bot', config: { account: { username: 'u@e.com', secret: 'enc:v1:x:y:z' } } };
+    it('strips the secret and masks the username before sending an instance to the browser', () => {
+        const instance = { name: 'bot', config: { account: { username: 'user@e.com', secret: 'enc:v1:x:y:z' } } };
         const safe = stripAccountSecret(instance);
-        assert.equal(safe.config.account.username, 'u@e.com');
+        assert.equal(safe.config.account.username, 'u***@e.com');
         assert.equal('secret' in safe.config.account, false);
         // The original object is not mutated.
         assert.equal(instance.config.account.secret, 'enc:v1:x:y:z');
+        assert.equal(instance.config.account.username, 'user@e.com');
     });
 });

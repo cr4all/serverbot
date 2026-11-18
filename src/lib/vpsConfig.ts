@@ -1,7 +1,7 @@
 /**
  * VPS addresses are operator configuration, so they live in this project's .env file and are never hard-coded.
  *
- *   VPS_BETONLINE_ADDRESS=remote.pjoplus.com.br:55317
+ *   VPS_BETONLINE_ADDRESS=168.121.74.27
  *   VPS_PS3838_ADDRESS=168.121.74.26
  *
  * A port is optional; when present it must be 1..65535.

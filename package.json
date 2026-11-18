@@ -7,7 +7,14 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:stats": "node --experimental-strip-types --test src/lib/bettingStats.test.ts"
+    "test:stats": "node --experimental-strip-types --test src/lib/bettingStats.test.ts",
+    "test:surebet": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/nearbySurebet.test.ts src/lib/executionService.test.ts",
+    "test:security": "node --experimental-strip-types --import ./scripts/register-ts-ext.mjs --test src/lib/botManagerUrl.test.ts",
+    "seed:surebet-templates": "node --env-file=.env.local scripts/seedSurebetTemplates.mjs",
+    "seed:surebet-templates:all": "node --env-file=.env.local scripts/seedSurebetTemplates.mjs --all",
+    "seed:local-client": "node --env-file=.env.local scripts/createLocalClient.mjs",
+    "seed:client-accounts": "node --env-file=.env.local scripts/seedClientAccounts.mjs",
+    "seed:vps-nodes": "node --env-file=.env.local scripts/seedVpsNodes.mjs"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

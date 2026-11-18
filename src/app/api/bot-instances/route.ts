@@ -8,6 +8,8 @@ import BotInstance from '@/models/BotInstance';
 import BotAssignment from '@/models/BotAssignment';
 import { allowedLocalesErrorMessage, isValidLocale } from '@/lib/locales';
 import { buildAccountConfig, stripAccountSecret } from '@/lib/credentialsCrypto';
+import VpsNode from '@/models/VpsNode';
+import mongoose from 'mongoose';
 
 export async function GET(request: Request) {
     try {
@@ -55,29 +57,34 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: allowedLocalesErrorMessage() }, { status: 400 });
         }
 
-        // Validate that the requested botId is allowed for this user
-        if ((session.user as any).role !== 'admin') {
-            const botId = body.botId;
-            if (!botId) {
-                return NextResponse.json({ error: 'botId is required' }, { status: 400 });
-            }
+        const botId = body.botId;
+        if (!botId) {
+            return NextResponse.json({ error: 'botId is required' }, { status: 400 });
+        }
 
+        const t = await Bot.findById(botId)
+            .select('templateStatus name type')
+            .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string; type?: string } | null>();
+        if (!t) {
+            return NextResponse.json({ error: 'bot template not found' }, { status: 404 });
+        }
+
+        const templateType = String(t.type ?? '').toUpperCase();
+        const isSurebetDesk = templateType === 'BETONLINE' || templateType === 'PS3838';
+
+        // Surebet desk templates are open to every logged-in user; other bots still need assignment.
+        if (!isAdmin && !isSurebetDesk) {
             const allowed = await BotAssignment.findOne({ botId, userId });
             if (!allowed) {
                 return NextResponse.json({ error: 'Forbidden: bot template not assigned to user' }, { status: 403 });
             }
         }
 
-        if (body.botId) {
-            const t = await Bot.findById(body.botId)
-                .select('templateStatus name')
-                .lean<{ templateStatus?: 'AVAILABLE' | 'MAINTENANCE'; name?: string } | null>();
-            if (!isAdmin && t?.templateStatus === 'MAINTENANCE') {
-                return NextResponse.json(
-                    { error: 'This bot template is under maintenance and cannot be created right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
-                    { status: 423 }
-                );
-            }
+        if (!isAdmin && t.templateStatus === 'MAINTENANCE') {
+            return NextResponse.json(
+                { error: 'This bot template is under maintenance and cannot be created right now.', code: 'BOT_TEMPLATE_MAINTENANCE' },
+                { status: 423 }
+            );
         }
 
         if (body.botId && body.config && typeof body.config === 'object') {
@@ -101,8 +108,33 @@ export async function POST(request: Request) {
             );
         }
 
+        let vpsId: mongoose.Types.ObjectId | undefined;
+        if (body.vpsId !== undefined && body.vpsId !== null && body.vpsId !== '') {
+            const raw = String(body.vpsId);
+            if (!mongoose.Types.ObjectId.isValid(raw)) {
+                return NextResponse.json({ error: 'Invalid vpsId' }, { status: 400 });
+            }
+            const node = await VpsNode.findOne({ _id: raw, enabled: true })
+                .select('role')
+                .lean<{ role?: string } | null>();
+            if (!node) {
+                return NextResponse.json({ error: 'VPS not found or disabled' }, { status: 404 });
+            }
+            if (isSurebetDesk && String(node.role ?? '').toUpperCase() !== templateType) {
+                return NextResponse.json(
+                    { error: `VPS role ${node.role} does not match bot type ${templateType}` },
+                    { status: 400 }
+                );
+            }
+            vpsId = new mongoose.Types.ObjectId(raw);
+        } else if (isSurebetDesk) {
+            return NextResponse.json({ error: 'vpsId is required for surebet bots' }, { status: 400 });
+        }
+
         // Force userId from session
         const instanceData: any = { ...body, userId: userId, lastBalance: 0 };
+        delete instanceData.vpsId;
+        if (vpsId) instanceData.vpsId = vpsId;
         if (account) {
             instanceData.config = { ...(body.config ?? {}), account };
         }

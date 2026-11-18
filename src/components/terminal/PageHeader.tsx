@@ -1,0 +1,21 @@
+'use client';
+
+export default function PageHeader({
+  title,
+  description,
+  actions,
+}: {
+  title: string;
+  description?: string;
+  actions?: React.ReactNode;
+}) {
+  return (
+    <header className="pt-page-header">
+      <div>
+        <h1>{title}</h1>
+        {description ? <p>{description}</p> : null}
+      </div>
+      {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
+    </header>
+  );
+}

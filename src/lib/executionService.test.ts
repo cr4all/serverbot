@@ -5,6 +5,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import { executeTip } from './executionService.ts';
+import type { VpsLeg } from './vpsClient.ts';
 
 const LEGS = [
     { bookmaker: 'BETONLINE', eventName: 'A - B', sport: 'basketball', marketType: 'winner', period: 'incl_ot', line: null, selection: 'team1', odds: 1.59, stakeRatio: 0.6454 },
@@ -15,9 +16,9 @@ function fakeVps(overrides: any = {}) {
     const calls = { prepare: 0, commit: 0, verify: 0 };
     return {
         calls,
-        prepare: async () => {
+        prepare: async (_executionId: string, _clientId: string, leg: any) => {
             calls.prepare += 1;
-            return { ok: true, odds: 1.59 };
+            return { ok: true, odds: Number(leg?.odds ?? 1.59) };
         },
         commit: async () => {
             calls.commit += 1;
@@ -131,5 +132,177 @@ describe('executeTip', () => {
         });
         assert.equal(record.executionId, 'ex_fixed');
         assert.equal(record.createdAt, '2026-11-06T20:00:00.000Z');
+    });
+
+    it('recalculates the stake split from moved odds when the pair is still a surebet', async () => {
+        const MOVED_LEGS: VpsLeg[] = [
+            { bookmaker: 'BETONLINE', eventName: 'A - B', sport: 'basketball', marketType: 'winner', period: 'incl_ot', line: null, selection: 'team1', odds: 1.95, stakeRatio: 0.52 },
+            { bookmaker: 'PS3838', eventName: 'A - B', sport: 'basketball', marketType: 'winner', period: 'incl_ot', line: null, selection: 'team2', odds: 2.1, stakeRatio: 0.48 },
+        ];
+        const seen: number[] = [];
+        const bo = fakeVps({
+            prepare: async () => ({ ok: true, odds: 2.0 }),
+            commit: async (_e: string, _c: string, _l: any, stake: number) => {
+                seen.push(stake);
+                return { ok: true, orderId: 'BO' };
+            },
+        });
+        const ps = fakeVps({
+            prepare: async () => ({ ok: true, odds: 2.08 }),
+            commit: async (_e: string, _c: string, _l: any, stake: number) => {
+                seen.push(stake);
+                return { ok: true, orderId: 'PS' };
+            },
+        });
+
+        const record = await executeTip({
+            tipId: 'tip-moved',
+            clientId: 'client-a',
+            stake: 100,
+            legs: MOVED_LEGS,
+            deps: { vps: { BETONLINE: bo, PS3838: ps }, nearbyEnabled: true },
+        });
+
+        assert.equal(record.state, 'DONE');
+        assert.deepEqual(seen.sort((a, b) => a - b), [49.02, 50.98]);
+    });
+
+    it('aborts when moved odds no longer form a surebet', async () => {
+        const MOVED_LEGS: VpsLeg[] = [
+            { bookmaker: 'BETONLINE', eventName: 'A - B', sport: 'basketball', marketType: 'winner', period: 'incl_ot', line: null, selection: 'team1', odds: 1.99, stakeRatio: 0.51 },
+            { bookmaker: 'PS3838', eventName: 'A - B', sport: 'basketball', marketType: 'winner', period: 'incl_ot', line: null, selection: 'team2', odds: 2.02, stakeRatio: 0.49 },
+        ];
+        const bo = fakeVps({ prepare: async () => ({ ok: true, odds: 1.98 }) });
+        const ps = fakeVps({ prepare: async () => ({ ok: true, odds: 2.01 }) });
+
+        const record = await executeTip({
+            tipId: 'tip-no-edge',
+            clientId: 'client-a',
+            stake: 100,
+            legs: MOVED_LEGS,
+            deps: { vps: { BETONLINE: bo, PS3838: ps }, nearbyEnabled: true },
+        });
+
+        assert.equal(record.state, 'ABORTED');
+        assert.match(record.note ?? '', /no surebet/i);
+        assert.equal(bo.calls.commit, 0);
+        assert.equal(ps.calls.commit, 0);
+    });
+
+    it('rebuilds a nearby line when the tip line is not ready on both books', async () => {
+        const LINE_LEGS = [
+            {
+                bookmaker: 'BETONLINE',
+                eventName: 'A - B',
+                sport: 'basketball',
+                marketType: 'handicap',
+                period: 'incl_ot',
+                line: 2.5,
+                selection: 'team1',
+                odds: 1.91,
+                stakeRatio: 0.5,
+            },
+            {
+                bookmaker: 'PS3838',
+                eventName: 'A - B',
+                sport: 'basketball',
+                marketType: 'handicap',
+                period: 'incl_ot',
+                line: 2.5,
+                selection: 'team2',
+                odds: 1.95,
+                stakeRatio: 0.5,
+            },
+        ];
+
+        const seenLines: number[] = [];
+        const commits = { bo: 0, ps: 0 };
+        const prepare = async (_e: string, _c: string, leg: any) => {
+            seenLines.push(Number(leg.line));
+            if (Number(leg.line) === 2.5) return { ok: false, reason: 'line gone' };
+            if (Number(leg.line) === 2) {
+                return {
+                    ok: true,
+                    odds: String(leg.bookmaker).toUpperCase() === 'BETONLINE' ? 2.05 : 2.1,
+                };
+            }
+            return { ok: false, reason: 'no market' };
+        };
+
+        const bo = fakeVps({
+            prepare,
+            commit: async () => {
+                commits.bo += 1;
+                return { ok: true, orderId: 'BO' };
+            },
+        });
+        const ps = fakeVps({
+            prepare,
+            commit: async () => {
+                commits.ps += 1;
+                return { ok: true, orderId: 'PS' };
+            },
+        });
+        const record = await executeTip({
+            tipId: 'tip-line',
+            clientId: 'client-a',
+            stake: 100,
+            legs: LINE_LEGS as any,
+            deps: { vps: { BETONLINE: bo, PS3838: ps }, nearbyEnabled: true },
+        });
+
+        assert.equal(record.state, 'DONE');
+        assert.equal(record.rebuilt, true);
+        assert.equal(record.rebuild?.appliedLine, 2);
+        assert.equal(record.rebuild?.originalLine, 2.5);
+        assert.ok((record.rebuild?.profitPercent ?? 0) > 0);
+        assert.ok(seenLines.includes(2.5));
+        assert.ok(seenLines.includes(2));
+        assert.equal(commits.bo, 1);
+        assert.equal(commits.ps, 1);
+    });
+
+    it('does not rebuild when nearby rebuild is disabled', async () => {
+        const LINE_LEGS = [
+            {
+                bookmaker: 'BETONLINE',
+                eventName: 'A - B',
+                sport: 'basketball',
+                marketType: 'total',
+                period: 'incl_ot',
+                line: 220.5,
+                selection: 'over',
+                odds: 1.9,
+                stakeRatio: 0.5,
+            },
+            {
+                bookmaker: 'PS3838',
+                eventName: 'A - B',
+                sport: 'basketball',
+                marketType: 'total',
+                period: 'incl_ot',
+                line: 220.5,
+                selection: 'under',
+                odds: 1.95,
+                stakeRatio: 0.5,
+            },
+        ];
+        let prepares = 0;
+        const failPrepare = async () => {
+            prepares += 1;
+            return { ok: false, reason: 'gone' };
+        };
+        const bo = fakeVps({ prepare: failPrepare });
+        const ps = fakeVps({ prepare: failPrepare });
+        const record = await executeTip({
+            tipId: 'tip-off',
+            clientId: 'client-a',
+            stake: 100,
+            legs: LINE_LEGS as any,
+            deps: { vps: { BETONLINE: bo, PS3838: ps }, nearbyEnabled: false },
+        });
+        assert.equal(record.state, 'ABORTED');
+        assert.equal(record.rebuilt, false);
+        assert.equal(prepares, 2);
     });
 });

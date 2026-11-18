@@ -91,10 +91,15 @@ export function buildAccountConfig(
     return { username, secret: encryptSecret(password, credentialsKeyFromEnv(env)) };
 }
 
-/** Removes the secret before a bot instance is sent to the browser. */
+/** Removes the secret (and masks username) before a bot instance is sent to the browser. */
 export function stripAccountSecret<T extends Record<string, any>>(instance: T): T {
     if (!instance?.config?.account) return instance;
     const account = { ...instance.config.account };
     delete account.secret;
+    if (typeof account.username === 'string') {
+        account.usernameMasked = maskAccount(account.username);
+        // Keep a truncated username for UI labels; never send the full local-part when it looks like an email.
+        account.username = maskAccount(account.username);
+    }
     return { ...instance, config: { ...instance.config, account } } as T;
 }

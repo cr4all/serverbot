@@ -1,11 +1,30 @@
 import type { Metadata } from 'next';
+import { Fraunces, Inter, Manrope } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import ThemeToggle from './components/ThemeToggle';
 
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-display-loaded',
+  display: 'swap',
+});
+
+const manrope = Manrope({
+  subsets: ['latin'],
+  variable: '--font-body-loaded',
+  display: 'swap',
+});
+
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter-loaded',
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: "ServerBot Manager",
-  description: "ServerBot Manager",
+  title: 'ServerBot',
+  description: 'Distributed surebet operations',
 };
 
 export default function RootLayout({
@@ -14,11 +33,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className="antialiased"
-      >
-        {/* Prevent theme flash by setting the initial `html.dark` class early. */}
+    <html lang="en" suppressHydrationWarning className={`${fraunces.variable} ${manrope.variable} ${inter.variable}`}>
+      <body className="antialiased" style={{ fontFamily: 'var(--font-body-loaded), var(--font-body)' }}>
+        <style
+          dangerouslySetInnerHTML={{
+            __html: `:root{--font-display:var(--font-display-loaded),Georgia,serif;--font-body:var(--font-body-loaded),Segoe UI,sans-serif;}`,
+          }}
+        />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function () {
@@ -32,9 +53,7 @@ export default function RootLayout({
 })();`,
           }}
         />
-        <Providers>
-          {children}
-        </Providers>
+        <Providers>{children}</Providers>
         <ThemeToggle />
       </body>
     </html>

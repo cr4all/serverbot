@@ -34,6 +34,14 @@ export const authOptions: AuthOptions = {
                     throw new Error("Invalid credentials");
                 }
 
+                const status = String((user as { status?: string }).status ?? "active").toLowerCase();
+                if (status === "pending") {
+                    throw new Error("Account pending approval");
+                }
+                if (status === "suspended") {
+                    throw new Error("Account suspended");
+                }
+
                 return {
                     id: user._id.toString(),
                     name: user.name,

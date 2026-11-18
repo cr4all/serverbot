@@ -1,298 +1,208 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { IBotInstance } from '@/types';
-import CreateBotDialog from './CreateBotDialog';
-import MessageDialog from '@/components/MessageDialog';
-import InstanceStatsStrip from '@/components/InstanceStatsStrip';
+import { IBotInstance, IBettingStatsResponse } from '@/types';
+import { groupSurebetDesks } from '@/lib/surebetDesks';
+import PageHeader from '@/components/terminal/PageHeader';
+import KpiCard from '@/components/terminal/KpiCard';
+import StatusBadge from '@/components/terminal/StatusBadge';
+import LoadingState from '@/components/terminal/LoadingState';
+import EmptyState from '@/components/terminal/EmptyState';
+import type { Execution, Tip } from '@/lib/terminal/surebetTypes';
+import CumulativePnLChart from '@/components/stats/CumulativePnLChart';
+import { formatSignedUnits } from '@/components/stats/formatStats';
 
 export default function DashboardPage() {
-    const { data: session, status } = useSession();
-    const router = useRouter();
-    const [instances, setInstances] = useState<IBotInstance[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [editingInstance, setEditingInstance] = useState<IBotInstance | null>(null);
-    const [messageDialog, setMessageDialog] = useState<{ open: boolean; title: string; message: string; variant?: 'info' | 'warning' | 'danger' | 'success' }>({
-        open: false,
-        title: '',
-        message: '',
-        variant: 'info',
-    });
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const [instances, setInstances] = useState<IBotInstance[]>([]);
+  const [tips, setTips] = useState<Tip[]>([]);
+  const [executions, setExecutions] = useState<Execution[]>([]);
+  const [hubError, setHubError] = useState<string | null>(null);
+  const [stats, setStats] = useState<IBettingStatsResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        if (status === 'unauthenticated') {
-            router.push('/login');
-        } else if (status === 'authenticated') {
-            fetchInstances();
+  useEffect(() => {
+    if (status === 'unauthenticated') router.push('/login');
+  }, [status, router]);
+
+  useEffect(() => {
+    if (status !== 'authenticated') return;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const [instRes, sureRes] = await Promise.all([
+          fetch('/api/bot-instances'),
+          fetch('/api/surebets', { cache: 'no-store' }),
+        ]);
+        if (cancelled) return;
+        if (instRes.ok) {
+          const data = await instRes.json();
+          setInstances(Array.isArray(data) ? data : []);
         }
-    }, [status, router]);
+        const sureData = await sureRes.json().catch(() => ({}));
+        if (!sureRes.ok) setHubError(sureData?.error ?? `Hub ${sureRes.status}`);
+        else setHubError(null);
+        setTips(Array.isArray(sureData?.tips) ? sureData.tips : []);
+        setExecutions(Array.isArray(sureData?.executions) ? sureData.executions : []);
+      } catch (e) {
+        if (!cancelled) setHubError((e as Error)?.message ?? 'Failed to load');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void load();
+    const id = setInterval(() => void load(), 15_000);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+    };
+  }, [status]);
 
-    // Poll for instance updates every 30 seconds when authenticated
-    useEffect(() => {
-        if (status !== 'authenticated') return;
+  const desks = useMemo(() => groupSurebetDesks(instances), [instances]);
 
-        const interval = setInterval(() => {
-            fetchInstances();
-        }, 30_000);
+  useEffect(() => {
+    const firstId = desks[0]?.betonline?._id || desks[0]?.ps3838?._id;
+    if (!firstId) {
+      setStats(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`/api/bot-instances/${firstId}/stats?period=month`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled) setStats(data as IBettingStatsResponse);
+      } catch {
+        /* stats optional */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [desks]);
 
-        return () => clearInterval(interval);
-    }, [status]);
+  if (status === 'loading' || loading) return <LoadingState label="Loading terminal…" />;
+  if (!session) return null;
 
-    const fetchInstances = async () => {
-        try {
-            const res = await fetch(`/api/bot-instances`);
-            if (res.ok) {
-                const data = await res.json();
-                setInstances(data);
-            }
-        } catch (error) {
-            console.error('Failed to fetch instances', error);
-        } finally {
-            setLoading(false);
+  const alerts = executions.filter((e) => e.state === 'ONE_LEG' || e.state === 'REVIEW_NEEDED');
+  const pnl = stats?.performance?.netPnL;
+
+  return (
+    <div>
+      <PageHeader
+        title="Dashboard"
+        description={`Welcome back, ${session.user?.name ?? 'operator'}. Live tips and executions from your hub client.`}
+        actions={
+          <Link href="/dashboard/opportunities" className="pt-btn pt-btn--primary">
+            Open board
+          </Link>
         }
-    };
+      />
 
-    const openCreateDialog = () => {
-        setEditingInstance(null);
-        setIsDialogOpen(true);
-    };
+      <div className="pt-kpi-grid">
+        <KpiCard label="Open tips" value={tips.length} hint={hubError ? 'Hub issue' : 'From hub'} />
+        <KpiCard label="Surebet bots" value={desks.length} hint="BetOnline + PS3838 desks" />
+        <KpiCard label="Recent runs" value={executions.length} hint={`${alerts.length} need attention`} />
+        <KpiCard
+          label="Realized P&L"
+          value={pnl == null ? '—' : formatSignedUnits(pnl)}
+          hint={stats ? 'First bot · last month UTC' : 'No instance stats yet'}
+        />
+      </div>
 
-    const openEditDialog = (instance: IBotInstance) => {
-        setEditingInstance(instance);
-        setIsDialogOpen(true);
-    };
+      {hubError ? (
+        <div className="mb-4 pt-card text-sm text-[color:#f87171]">{hubError}</div>
+      ) : null}
 
-    if (status === 'loading' || loading) return <div className="p-8 text-center text-gray-600 dark:text-gray-400">Loading...</div>;
-    if (!session) return null;
-
-    return (
-        <div>
-            <div className="mb-6 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-0">
-                <div>
-                    <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Your Bot Instances</h1>
-                    <p className="text-sm text-gray-500">Welcome back, {session.user?.name}</p>
-                </div>
-                <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:gap-4">
-                    <button
-                        onClick={openCreateDialog}
-                        className="rounded-md bg-blue-600 px-4 py-2 text-center text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                    >
-                        Add New Bot
-                    </button>
-                </div>
+      <div className="pt-grid-2">
+        <div className="pt-card">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="pt-card__title !mb-0">Open tips</h2>
+            <Link href="/dashboard/opportunities" className="text-xs text-[color:var(--pt-primary)]">
+              Open board
+            </Link>
+          </div>
+          {tips.length === 0 ? (
+            <EmptyState title="No open tips" message="Waiting for hub tips." />
+          ) : (
+            <div className="pt-table-wrap">
+              <table className="pt-table">
+                <thead>
+                  <tr>
+                    <th>Event</th>
+                    <th>Sport</th>
+                    <th>ROI</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tips.slice(0, 8).map((tip) => (
+                    <tr key={tip.tipId}>
+                      <td className="font-medium">{tip.eventName}</td>
+                      <td>{tip.sport}</td>
+                      <td className="text-[color:var(--pt-cyan)]">{tip.profitPercent}%</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
+          )}
+        </div>
 
-            <CreateBotDialog
-                isOpen={isDialogOpen}
-                onClose={() => setIsDialogOpen(false)}
-                onSuccess={fetchInstances}
-                initialData={editingInstance}
-            />
-
-            <MessageDialog
-                open={messageDialog.open}
-                title={messageDialog.title}
-                message={messageDialog.message}
-                variant={messageDialog.variant}
-                onClose={() => setMessageDialog({ open: false, title: '', message: '', variant: 'info' })}
-            />
-
-            {instances.length === 0 ? (
-                <div className="text-center text-gray-500 py-10 bg-white dark:bg-gray-800 rounded-lg shadow">
-                    <p>No bot instances found. Create one to get started!</p>
-                </div>
+        <div className="space-y-4">
+          <div className="pt-card">
+            <h2 className="pt-card__title">Recent executions</h2>
+            {executions.length === 0 ? (
+              <EmptyState title="No executions" />
             ) : (
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                    {instances.map((instance) => (
-                        <BotCard
-                            key={instance._id as string}
-                            instance={instance}
-                            refresh={fetchInstances}
-                            onEdit={() => openEditDialog(instance)}
-                            onMessage={(m) => setMessageDialog(m)}
-                        />
-                    ))}
-                </div>
+              <ul className="space-y-2">
+                {executions.slice(0, 6).map((e) => (
+                  <li key={e.executionId} className="flex items-center justify-between gap-2 text-sm">
+                    <span className="truncate font-mono text-xs">{e.executionId}</span>
+                    <StatusBadge state={e.state} />
+                  </li>
+                ))}
+              </ul>
             )}
-        </div>
-    );
-}
+            <Link href="/dashboard/history" className="mt-3 inline-block text-xs text-[color:var(--pt-primary)]">
+              History
+            </Link>
+          </div>
 
-const SOCKET_URL = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
-
-function BotCard({
-    instance,
-    refresh,
-    onEdit,
-    onMessage,
-}: {
-    instance: IBotInstance;
-    refresh: () => void;
-    onEdit: () => void;
-    onMessage: (m: { open: boolean; title: string; message: string; variant?: 'info' | 'warning' | 'danger' | 'success' }) => void;
-}) {
-    const isRunning = instance.status === 'RUNNING';
-    const instanceId = instance._id as string;
-
-    const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-    const [balanceError, setBalanceError] = useState<string | null>(null);
-
-    const fetchBalanceFromServer = async () => {
-        setBalanceError(null);
-        setIsLoadingBalance(true);
-        try {
-            const res = await fetch(`${SOCKET_URL}/bot/balance/${instanceId}`);
-            if (!res.ok) {
-                setBalanceError('Failed to fetch balance');
-                return;
-            }
-            const data = await res.json();
-            const balance = data?.balance;
-            if (typeof balance !== 'number') {
-                setBalanceError('Invalid balance from server');
-                return;
-            }
-            const patchRes = await fetch(`/api/bot-instances/${instance._id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ lastBalance: balance }),
-            });
-            if (!patchRes.ok) {
-                setBalanceError('Failed to save balance');
-                return;
-            }
-            refresh();
-        } catch (e) {
-            console.error(e);
-            setBalanceError('Failed to fetch balance');
-        } finally {
-            setIsLoadingBalance(false);
-        }
-    };
-
-    const toggleStatus = async () => {
-        const newStatus = isRunning ? 'STOPPED' : 'RUNNING';
-        try {
-            const res = await fetch(`/api/bot-instances/${instance._id}`, {
-                method: 'PATCH',
-                body: JSON.stringify({ status: newStatus })
-            });
-            if (!res.ok) {
-                const err = await res.json().catch(() => ({}));
-                onMessage({
-                    open: true,
-                    title: 'Cannot start bot',
-                    message: err?.error || 'Failed to update instance.',
-                    variant: err?.code === 'BOT_TEMPLATE_MAINTENANCE' ? 'warning' : 'danger',
-                });
-                return;
-            }
-            refresh();
-        } catch (e) {
-            console.error(e);
-            onMessage({
-                open: true,
-                title: 'Request failed',
-                message: 'Failed to update instance. Please try again.',
-                variant: 'danger',
-            });
-        }
-    };
-
-    const deleteInstance = async () => {
-        if (!confirm('Are you sure?')) return;
-        try {
-            await fetch(`/api/bot-instances/${instance._id}`, {
-                method: 'DELETE',
-            });
-            refresh();
-        } catch (e) {
-            console.error(e);
-        }
-    };
-
-    return (
-        <div className="overflow-hidden rounded-lg bg-white shadow transition hover:shadow-md dark:bg-gray-800 border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-                <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                        <div className={`h-3 w-3 rounded-full ${isRunning ? 'bg-green-500' : 'bg-red-500'}`} />
-                        <h3 className="text-lg font-medium text-gray-900 dark:text-white truncate" title={instance.name}>
-                            <Link href={`/dashboard/instance/${instance._id}`} className="hover:underline hover:text-blue-500 truncate">
-                                {instance.name}
-                            </Link>
-                        </h3>
-                    </div>
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-800 dark:bg-gray-700 dark:text-gray-300">
-                        {(instance.botId as any)?.type || 'UNKNOWN'}
+          <div className="pt-card">
+            <h2 className="pt-card__title">Bots</h2>
+            {desks.length === 0 ? (
+              <EmptyState title="No surebet bots" message="Create a desk with both bookmaker logins." />
+            ) : (
+              <ul className="space-y-2 text-sm">
+                {desks.slice(0, 5).map((d) => (
+                  <li key={d.deskId} className="flex justify-between gap-2">
+                    <span>{d.name}</span>
+                    <span className="text-[color:var(--pt-muted)] text-xs">
+                      {[d.betonline ? 'BOL' : null, d.ps3838 ? 'PS' : null].filter(Boolean).join('+')}
                     </span>
-                </div>
-                <div className="mt-4 space-y-1">
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Bot template: <span className="font-medium">{(instance.botId as any)?.name || 'Unknown'}</span>
-                    </p>
-                    {instance.config?.username && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Username: <span className="font-medium text-gray-900 dark:text-white">{instance.config.username}</span>
-                        </p>
-                    )}
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Balance: <span className="font-medium text-gray-900 dark:text-white">${instance.lastBalance ?? 0}</span>
-                        <button
-                            type="button"
-                            onClick={fetchBalanceFromServer}
-                            disabled={isLoadingBalance}
-                            className="ml-2 rounded-md border border-gray-300 bg-white px-2 py-0.5 text-xs font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
-                            aria-label="Update balance from server"
-                        >
-                            {isLoadingBalance ? 'Updating…' : 'Update'}
-                        </button>
-                    </p>
-                    {balanceError && (
-                        <p className="text-xs text-red-600 dark:text-red-400">{balanceError}</p>
-                    )}
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                        Status: <span className={`font-medium ${isRunning ? 'text-green-600' : 'text-red-600'}`}>{instance.status}</span>
-                    </p>
-                </div>
-                <InstanceStatsStrip botInstanceId={instanceId} className="mt-3" />
-                <div className="mt-6 flex flex-wrap gap-2">
-                    <button
-                        onClick={toggleStatus}
-                        className={`flex-1 rounded-md px-3 py-2 text-sm font-medium text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-offset-2 ${isRunning
-                            ? 'bg-red-600 hover:bg-red-700 focus:ring-red-500'
-                            : 'bg-green-600 hover:bg-green-700 focus:ring-green-500'
-                            }`}
-                    >
-                        {isRunning ? 'Stop' : 'Start'}
-                    </button>
-                    <button
-                        onClick={onEdit}
-                        disabled={isRunning}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
-                    >
-                        Edit
-                    </button>
-                    <button
-                        onClick={deleteInstance}
-                        disabled={isRunning}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
-                    >
-                        Delete
-                    </button>
-                    <Link
-                        href={`/dashboard/instance/${instance._id}`}
-                        className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:bg-gray-700 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-gray-600"
-                        aria-label={`Open ${instance.name} details`}
-                    >
-                        Details
-                    </Link>
-                </div>
-            </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <Link href="/dashboard/bots" className="mt-3 inline-block text-xs text-[color:var(--pt-primary)]">
+              Manage bots
+            </Link>
+          </div>
         </div>
-    );
+      </div>
+
+      {stats?.series?.cumulativePnLByDay?.length ? (
+        <div className="mt-4 pt-card">
+          <h2 className="pt-card__title">Cumulative P&L (first bot · month)</h2>
+          <CumulativePnLChart points={stats.series.cumulativePnLByDay} />
+        </div>
+      ) : null}
+    </div>
+  );
 }

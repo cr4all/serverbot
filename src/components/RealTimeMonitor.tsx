@@ -616,7 +616,7 @@ export default function RealTimeMonitor({ instanceId, isInstanceRunning = false 
                                 disabled={!isInstanceRunning || settlementLoading}
                                 title={
                                     !isInstanceRunning
-                                        ? '인스턴스가 RUNNING일 때만 사용 가능'
+                                        ? 'Only available when the instance is RUNNING'
                                         : 'Fetch settlement results from the bookmaker'
                                 }
                                 className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 transition hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300 dark:hover:bg-blue-900/50"

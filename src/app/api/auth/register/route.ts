@@ -30,11 +30,20 @@ export async function POST(request: Request) {
         // Hash password
         const hashedPassword = await bcrypt.hash(password, 12);
 
+        // New accounts start pending unless REGISTER_DEFAULT_STATUS=active (local/dev).
+        const defaultStatusRaw = String(process.env.REGISTER_DEFAULT_STATUS ?? 'pending').trim().toLowerCase();
+        const status =
+            defaultStatusRaw === 'active' || defaultStatusRaw === 'suspended' || defaultStatusRaw === 'pending'
+                ? defaultStatusRaw
+                : 'pending';
+
         // Create user
         const user = await User.create({
             name,
             email,
             password: hashedPassword,
+            status,
+            plan: 'free',
         });
         // After user creation, auto-assign any default templates
         try {
@@ -48,7 +57,14 @@ export async function POST(request: Request) {
         }
 
         return NextResponse.json(
-            { message: 'User created successfully', userId: user._id },
+            {
+                message:
+                    status === 'active'
+                        ? 'User created successfully'
+                        : 'User created; awaiting approval before login',
+                userId: user._id,
+                status,
+            },
             { status: 201 }
         );
     } catch (error) {

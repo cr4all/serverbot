@@ -25,16 +25,23 @@ export async function GET(request: Request) {
             return NextResponse.json(bots);
         }
 
-        // Regular users see only assigned bot templates
+        // Surebet desk (BETONLINE + PS3838) is available to every logged-in user.
+        // Other templates still require BotAssignment.
         const assigns = await BotAssignment.find({ userId }).lean();
         const allowedIds = assigns.map((a: any) => a.botId).filter(Boolean);
 
-        if (allowedIds.length === 0) {
-            return NextResponse.json([]);
-        }
+        const [surebetBots, assignedBots] = await Promise.all([
+            Bot.find({ type: { $in: ['BETONLINE', 'PS3838'] } }).sort({ createdAt: -1 }),
+            allowedIds.length > 0
+                ? Bot.find({ _id: { $in: allowedIds } }).sort({ createdAt: -1 })
+                : Promise.resolve([]),
+        ]);
 
-        const bots = await Bot.find({ _id: { $in: allowedIds } }).sort({ createdAt: -1 });
-        return NextResponse.json(bots);
+        const byId = new Map<string, (typeof surebetBots)[number]>();
+        for (const bot of [...surebetBots, ...assignedBots]) {
+            byId.set(String(bot._id), bot);
+        }
+        return NextResponse.json([...byId.values()]);
     } catch (error) {
         console.error('Error fetching bots:', error);
         return NextResponse.json(

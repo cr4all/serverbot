@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import LoadingState from '@/components/terminal/LoadingState';
+import { RedirectSkeleton } from '@/components/terminal/Skeleton';
 
 /** Legacy Live Run entry — Board is the canonical page. */
 export default function SurebetsRedirectPage() {
@@ -10,5 +10,5 @@ export default function SurebetsRedirectPage() {
   useEffect(() => {
     router.replace('/dashboard/opportunities');
   }, [router]);
-  return <LoadingState label="Redirecting to Board…" />;
+  return <RedirectSkeleton label="Redirecting to Board…" />;
 }

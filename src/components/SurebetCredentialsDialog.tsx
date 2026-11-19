@@ -5,11 +5,6 @@ import type { IBotInstance } from '@/types';
 
 type SiteKey = 'BETONLINE' | 'PS3838';
 
-type SiteForm = {
-  username: string;
-  password: string;
-};
-
 type Template = {
   _id: string;
   name?: string;
@@ -25,16 +20,18 @@ type VpsOption = {
   enabled: boolean;
 };
 
+type SiteAccount = {
+  username: string;
+  password: string;
+};
+
+const EMPTY_ACCOUNTS: Record<SiteKey, SiteAccount> = {
+  BETONLINE: { username: '', password: '' },
+  PS3838: { username: '', password: '' },
+};
+
 function siteLabel(site: SiteKey) {
   return site === 'BETONLINE' ? 'BetOnline' : 'PS3838';
-}
-
-function maskUsername(value: string | undefined) {
-  const v = String(value ?? '').trim();
-  if (!v) return 'Not set';
-  const at = v.indexOf('@');
-  if (at > 1) return `${v[0]}•••${v.slice(at)}`;
-  return v.length <= 2 ? '•••' : `${v[0]}•••`;
 }
 
 function vpsIdOf(instance: IBotInstance | null): string {
@@ -45,6 +42,11 @@ function vpsIdOf(instance: IBotInstance | null): string {
     return String((raw as { _id: unknown })._id ?? '');
   }
   return String(raw);
+}
+
+function maskedAccountOf(instance: IBotInstance | null): string {
+  const account = instance?.config?.account as { username?: string; usernameMasked?: string } | undefined;
+  return String(account?.usernameMasked || account?.username || '').trim();
 }
 
 export default function SurebetCredentialsDialog({
@@ -78,10 +80,7 @@ export default function SurebetCredentialsDialog({
     BETONLINE: '',
     PS3838: '',
   });
-  const [forms, setForms] = useState<Record<SiteKey, SiteForm>>({
-    BETONLINE: { username: '', password: '' },
-    PS3838: { username: '', password: '' },
-  });
+  const [accounts, setAccounts] = useState<Record<SiteKey, SiteAccount>>(EMPTY_ACCOUNTS);
 
   useEffect(() => {
     if (!open) return;
@@ -91,16 +90,8 @@ export default function SurebetCredentialsDialog({
       BETONLINE: vpsIdOf(betonline),
       PS3838: vpsIdOf(ps3838),
     });
-    setForms({
-      BETONLINE: {
-        username: String((betonline?.config as { account?: { username?: string } } | undefined)?.account?.username ?? ''),
-        password: '',
-      },
-      PS3838: {
-        username: String((ps3838?.config as { account?: { username?: string } } | undefined)?.account?.username ?? ''),
-        password: '',
-      },
-    });
+    // Do not prefill usernames from the API — responses are masked and must not be re-saved as-is.
+    setAccounts(EMPTY_ACCOUNTS);
 
     let cancelled = false;
     (async () => {
@@ -147,12 +138,38 @@ export default function SurebetCredentialsDialog({
 
   const optionsFor = (site: SiteKey) => vpsNodes.filter((n) => n.role === site);
 
+  const instanceFor = (site: SiteKey) => (site === 'BETONLINE' ? betonline : ps3838);
+
+  const setAccountField = (site: SiteKey, field: keyof SiteAccount, value: string) => {
+    setAccounts((prev) => ({
+      ...prev,
+      [site]: { ...prev[site], [field]: value },
+    }));
+  };
+
   const saveSite = async (site: SiteKey, instance: IBotInstance | null, groupId: string, botName: string) => {
-    const username = forms[site].username.trim();
-    const password = forms[site].password;
     const vpsId = vpsIds[site].trim();
     if (!vpsId) throw new Error(`${siteLabel(site)} VPS is required`);
-    if (!username && !password && mode === 'edit' && instance) {
+
+    const username = accounts[site].username.trim();
+    const password = accounts[site].password;
+    const hasSavedAccount = Boolean(maskedAccountOf(instance));
+
+    if (mode === 'create') {
+      if (!username) throw new Error(`${siteLabel(site)} username is required`);
+      if (!password) throw new Error(`${siteLabel(site)} password is required`);
+    } else if (password && !username) {
+      throw new Error(`${siteLabel(site)} username is required when changing the password`);
+    } else if (!hasSavedAccount && (!username || !password)) {
+      throw new Error(`${siteLabel(site)} username and password are required`);
+    }
+
+    const accountPayload =
+      username
+        ? { account: { username, password } }
+        : {};
+
+    if (instance && mode === 'edit') {
       const res = await fetch(`/api/bot-instances/${instance._id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -164,32 +181,8 @@ export default function SurebetCredentialsDialog({
             deskId: groupId,
             deskName: botName,
           },
+          ...accountPayload,
         }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error || `Failed to update ${siteLabel(site)}`);
-      }
-      return;
-    }
-    if (!username) throw new Error(`${siteLabel(site)} login ID is required`);
-    if (!instance && !password) throw new Error(`${siteLabel(site)} password is required for first save`);
-
-    if (instance && mode === 'edit') {
-      const body: Record<string, unknown> = {
-        name: `${botName} · ${siteLabel(site)}`,
-        vpsId,
-        config: {
-          ...(instance.config ?? {}),
-          deskId: groupId,
-          deskName: botName,
-        },
-        account: { username, password },
-      };
-      const res = await fetch(`/api/bot-instances/${instance._id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -211,7 +204,7 @@ export default function SurebetCredentialsDialog({
         status: 'STOPPED',
         vpsId,
         config: { deskId: groupId, deskName: botName },
-        account: { username, password },
+        ...accountPayload,
       }),
     });
     if (!res.ok) {
@@ -229,7 +222,11 @@ export default function SurebetCredentialsDialog({
       if (!vpsIds.PS3838.trim()) throw new Error('Select a PS3838 VPS');
       const botName = name.trim() || defaultName;
       const groupId =
-        mode === 'create' ? (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `desk-${Date.now()}`) : deskId || `desk-${Date.now()}`;
+        mode === 'create'
+          ? typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `desk-${Date.now()}`
+          : deskId || `desk-${Date.now()}`;
       if (mode === 'create') {
         await saveSite('BETONLINE', null, groupId, botName);
         await saveSite('PS3838', null, groupId, botName);
@@ -240,62 +237,67 @@ export default function SurebetCredentialsDialog({
       onSuccess();
       onClose();
     } catch (err) {
-      setError((err as Error)?.message || 'Could not save credentials');
+      setError((err as Error)?.message || 'Could not save bot');
     } finally {
       setLoading(false);
     }
   };
 
-  const SiteFields = ({ site }: { site: SiteKey }) => {
-    const instance = site === 'BETONLINE' ? betonline : ps3838;
-    const stored = String((instance?.config as { account?: { username?: string } } | undefined)?.account?.username ?? '');
+  const SitePick = ({ site }: { site: SiteKey }) => {
     const options = optionsFor(site);
+    const selected = options.find((n) => n._id === vpsIds[site]);
+    const saved = maskedAccountOf(instanceFor(site));
+    const account = accounts[site];
     return (
-      <section className="sb-credential-pane">
-        <div className="sb-credential-pane__head">
-          <h3>{siteLabel(site)}</h3>
-          {mode === 'edit' && (
-            <span className={stored ? 'sb-pill sb-pill--ready' : 'sb-pill sb-pill--missing'}>
-              {stored ? `Saved · ${maskUsername(stored)}` : 'Missing'}
-            </span>
-          )}
+      <section className="sb-vps-pick">
+        <div className="sb-vps-pick__label">
+          <span className="sb-vps-pick__site">{siteLabel(site)}</span>
+          {selected ? <span className="sb-vps-pick__hint">{selected.address}</span> : null}
         </div>
-        <label className="sb-field">
-          <span>VPS</span>
-          <select
-            value={vpsIds[site]}
-            disabled={loading || options.length === 0}
-            onChange={(e) => setVpsIds((prev) => ({ ...prev, [site]: e.target.value }))}
-            required
-          >
-            <option value="">{options.length === 0 ? 'No VPS available' : `Select ${siteLabel(site)} VPS`}</option>
-            {options.map((n) => (
-              <option key={n._id} value={n._id}>
-                {n.name} · {n.address}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="sb-field">
-          <span>Login ID</span>
+        <select
+          className="sb-vps-pick__select"
+          value={vpsIds[site]}
+          disabled={loading || options.length === 0}
+          onChange={(e) => setVpsIds((prev) => ({ ...prev, [site]: e.target.value }))}
+          required
+        >
+          <option value="">{options.length === 0 ? 'No VPS available' : `Select ${siteLabel(site)} VPS`}</option>
+          {options.map((n) => (
+            <option key={n._id} value={n._id}>
+              {n.name} · {n.address}
+            </option>
+          ))}
+        </select>
+
+        {mode === 'edit' && saved ? (
+          <p className="sb-vps-pick__hint" style={{ marginTop: '0.55rem' }}>
+            Saved account: {saved}
+          </p>
+        ) : null}
+
+        <label className="sb-field" style={{ marginTop: '0.7rem' }}>
+          <span>{siteLabel(site)} username</span>
           <input
             type="text"
             autoComplete="username"
-            value={forms[site].username}
+            value={account.username}
             disabled={loading}
-            onChange={(e) => setForms((prev) => ({ ...prev, [site]: { ...prev[site], username: e.target.value } }))}
-            placeholder="Username, email, or login ID"
+            onChange={(e) => setAccountField(site, 'username', e.target.value)}
+            placeholder={mode === 'edit' && saved ? 'Leave blank to keep' : 'Bookmaker login'}
+            required={mode === 'create'}
           />
         </label>
-        <label className="sb-field">
-          <span>Password {mode === 'edit' && instance ? <em>(leave blank to keep current)</em> : null}</span>
+
+        <label className="sb-field" style={{ marginTop: '0.55rem' }}>
+          <span>{siteLabel(site)} password</span>
           <input
             type="password"
-            autoComplete="current-password"
-            value={forms[site].password}
+            autoComplete="new-password"
+            value={account.password}
             disabled={loading}
-            onChange={(e) => setForms((prev) => ({ ...prev, [site]: { ...prev[site], password: e.target.value } }))}
-            placeholder="Account password"
+            onChange={(e) => setAccountField(site, 'password', e.target.value)}
+            placeholder={mode === 'edit' && saved ? 'Leave blank to keep' : 'Bookmaker password'}
+            required={mode === 'create'}
           />
         </label>
       </section>
@@ -314,12 +316,12 @@ export default function SurebetCredentialsDialog({
     >
       <form className="sb-modal" onSubmit={submit}>
         <header className="sb-modal__header">
-          <p className="sb-kicker">Surebet bot</p>
-          <h2 id={titleId}>{mode === 'create' ? 'Create surebet bot' : 'Bot credentials'}</h2>
-          <p>Pick a separate VPS for each bookmaker, then enter both logins. Bets only run as a paired trade.</p>
+          <p className="sb-kicker">Surebet desk</p>
+          <h2 id={titleId}>{mode === 'create' ? 'Create bot' : 'Edit bot'}</h2>
+          <p>Pick a VPS and bookmaker login for BetOnline and PS3838.</p>
         </header>
 
-        <div style={{ padding: '0.2rem 1.4rem 0' }}>
+        <div className="sb-modal__body">
           <label className="sb-field">
             <span>Bot name</span>
             <input
@@ -327,14 +329,14 @@ export default function SurebetCredentialsDialog({
               value={name}
               disabled={loading}
               onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Main surebet desk"
+              placeholder="e.g. Main desk"
             />
           </label>
-        </div>
 
-        <div className="sb-credential-grid">
-          <SiteFields site="BETONLINE" />
-          <SiteFields site="PS3838" />
+          <div className="sb-vps-stack">
+            <SitePick site="BETONLINE" />
+            <SitePick site="PS3838" />
+          </div>
         </div>
 
         {error && <p className="sb-form-error">{error}</p>}
@@ -344,7 +346,7 @@ export default function SurebetCredentialsDialog({
             Cancel
           </button>
           <button type="submit" className="sb-btn sb-btn--primary" disabled={loading}>
-            {loading ? 'Saving…' : mode === 'create' ? 'Create bot' : 'Save credentials'}
+            {loading ? 'Saving…' : mode === 'create' ? 'Create' : 'Save'}
           </button>
         </footer>
       </form>

@@ -181,24 +181,57 @@ export default function AdminVpsPage() {
                 <td className="px-4 py-3 text-sm text-gray-500">{n.address}</td>
                 <td className="px-4 py-3 text-sm text-gray-500">{n.username}</td>
                 <td className="px-4 py-3 text-sm">
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => toggleEnabled(n)}
+                  <span
                     className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
                       n.enabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'
                     }`}
                   >
                     {n.enabled ? 'enabled' : 'disabled'}
-                  </button>
+                  </span>
                 </td>
-                <td className="px-4 py-3 text-right text-sm space-x-2">
-                  <button type="button" className="text-blue-600 hover:underline" onClick={() => startEdit(n)}>
-                    Edit
-                  </button>
-                  <button type="button" className="text-red-600 hover:underline" onClick={() => remove(n)}>
-                    Delete
-                  </button>
+                <td className="px-4 py-3 text-right text-sm">
+                  <div className="inline-flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => toggleEnabled(n)}
+                      title={n.enabled ? 'Disable this VPS (hide from bot create)' : 'Enable this VPS'}
+                      aria-label={n.enabled ? 'Disable VPS' : 'Enable VPS'}
+                      className="rounded-md p-1.5 text-emerald-600 hover:bg-emerald-50 disabled:opacity-40 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                    >
+                      {n.enabled ? (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      ) : (
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                        </svg>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startEdit(n)}
+                      title="Edit VPS name, address, and credentials"
+                      aria-label="Edit VPS"
+                      className="rounded-md p-1.5 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.25 2.25 0 113.182 3.182L7.5 19.213l-4 1 1-4L16.862 3.487z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => remove(n)}
+                      title="Delete this VPS node"
+                      aria-label="Delete VPS"
+                      className="rounded-md p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v10a2 2 0 002 2h2a2 2 0 002-2V7" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

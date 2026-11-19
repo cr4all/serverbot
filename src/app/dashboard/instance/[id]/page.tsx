@@ -8,6 +8,7 @@ import Link from 'next/link';
 import RealTimeMonitor from '@/components/RealTimeMonitor';
 import InstancePerformance from '@/components/InstancePerformance';
 import InstanceStatsStrip from '@/components/InstanceStatsStrip';
+import { InstancePageSkeleton } from '@/components/terminal/Skeleton';
 import { IBotInstance } from '@/types';
 
 type MonitorTab = 'monitor' | 'performance';
@@ -57,16 +58,8 @@ export default function InstanceMonitorPage({ params }: { params: Promise<{ id: 
         }
     };
 
-    if (status === 'loading' || loading) {
-        return (
-            <div className="flex min-h-[40vh] items-center justify-center">
-                <div className="flex flex-col items-center gap-3">
-                    <div className="h-8 w-8 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Loading instance…</p>
-                </div>
-            </div>
-        );
-    }
+    if (status === 'unauthenticated') return null;
+    if (status === 'loading' || loading) return <InstancePageSkeleton />;
     if (!session || !instance) return null;
 
     const isRunning = instance.status === 'RUNNING';

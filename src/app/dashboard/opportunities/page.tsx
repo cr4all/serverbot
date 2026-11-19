@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import OpportunityBoard from '@/components/terminal/OpportunityBoard';
-import LoadingState from '@/components/terminal/LoadingState';
+import { BoardPageSkeleton } from '@/components/terminal/Skeleton';
 
 export default function OpportunitiesPage() {
   const { status } = useSession();
@@ -14,8 +14,8 @@ export default function OpportunitiesPage() {
     if (status === 'unauthenticated') router.push('/login');
   }, [status, router]);
 
-  if (status === 'loading') return <LoadingState />;
-  if (status !== 'authenticated') return null;
+  if (status === 'unauthenticated') return null;
+  if (status === 'loading') return <BoardPageSkeleton />;
 
   return <OpportunityBoard />;
 }

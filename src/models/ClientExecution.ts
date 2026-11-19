@@ -25,6 +25,29 @@ const RebuildSchema = new mongoose.Schema(
     { _id: false }
 );
 
+/** Snapshot of the tip at bet time so history stays readable after the tip expires. */
+const TipSummaryLegSchema = new mongoose.Schema(
+    {
+        bookmaker: { type: String, required: true },
+        selection: { type: String, default: '' },
+        odds: { type: Number, default: null },
+        marketType: { type: String, default: null },
+        line: { type: Number, default: null },
+        eventName: { type: String, default: null },
+    },
+    { _id: false }
+);
+
+const TipSummarySchema = new mongoose.Schema(
+    {
+        eventName: { type: String, default: '' },
+        sport: { type: String, default: '' },
+        profitPercent: { type: Number, default: null },
+        legs: { type: [TipSummaryLegSchema], default: [] },
+    },
+    { _id: false }
+);
+
 const ClientExecutionSchema = new mongoose.Schema(
     {
         executionId: { type: String, required: true, unique: true },
@@ -34,6 +57,7 @@ const ClientExecutionSchema = new mongoose.Schema(
         state: { type: String, required: true },
         note: { type: String, default: null },
         legs: { type: [ExecutionLegSchema], default: [] },
+        tipSummary: { type: TipSummarySchema, default: null },
         /** Nearby-line rebuild. Persisted always; API may omit when SUREBET_SHOW_REBUILT is unset. */
         rebuilt: { type: Boolean, default: false },
         rebuild: { type: RebuildSchema, default: null },

@@ -20,7 +20,7 @@ export default function AdminLayout({
 
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            setIsAdminConsolePort(window.location.port === '3100');
+            setIsAdminConsolePort(window.location.port === '5000');
         }
     }, []);
 
@@ -44,7 +44,6 @@ export default function AdminLayout({
         { name: 'Overview', href: '/admin' },
         { name: 'Users', href: '/admin/users' },
         { name: 'VPS', href: '/admin/vps' },
-        { name: 'Bot Templates', href: '/admin/bots' },
         { name: 'All Instances', href: '/admin/instances' },
     ];
 
@@ -74,18 +73,18 @@ export default function AdminLayout({
                                 </div>
                             </div>
 
-                            <div className="flex items-center gap-4">
-                                <button onClick={() => setIsChangePasswordOpen(true)} className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white mr-4">
+                            <div className="flex items-center gap-2 sm:gap-4">
+                                <button onClick={() => setIsChangePasswordOpen(true)} className="hidden text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white sm:inline">
                                     Change Password
                                 </button>
                                 <button
                                     onClick={() => signOut({ callbackUrl: '/login' })}
-                                    className="text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+                                    className="hidden text-sm font-medium text-gray-700 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white sm:inline"
                                 >
                                     Sign Out
                                 </button>
                                 {!isAdminConsolePort ? (
-                                    <Link href="/dashboard" className="text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400">
+                                    <Link href="/dashboard" className="hidden text-sm font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 sm:inline">
                                         Exit Admin
                                     </Link>
                                 ) : null}
@@ -93,6 +92,7 @@ export default function AdminLayout({
                                     <button
                                         onClick={() => setIsMenuOpen(!isMenuOpen)}
                                         className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500 dark:hover:bg-gray-800"
+                                        aria-label="Open menu"
                                     >
                                         <svg className="block h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
                                             {isMenuOpen ? (

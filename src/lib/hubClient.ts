@@ -70,6 +70,8 @@ export interface HubTip {
     eventName: string;
     startsAtUtc: string;
     expiresAtUtc: string;
+    /** When the hub accepted the tip (UTC). */
+    createdAt?: string;
     profitPercent: number;
     status: string;
     legs: HubLeg[];

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import PageHeader from '@/components/terminal/PageHeader';
-import LoadingState from '@/components/terminal/LoadingState';
+import { SettingsPageSkeleton } from '@/components/terminal/Skeleton';
 import ChangePasswordDialog from '@/app/components/ChangePasswordDialog';
 
 export default function SettingsPage() {
@@ -16,8 +16,8 @@ export default function SettingsPage() {
     if (status === 'unauthenticated') router.push('/login');
   }, [status, router]);
 
-  if (status === 'loading') return <LoadingState />;
-  if (!session) return null;
+  if (status === 'unauthenticated') return null;
+  if (status === 'loading' || !session) return <SettingsPageSkeleton />;
 
   const user = session.user as { name?: string | null; email?: string | null; role?: string };
 
@@ -41,18 +41,15 @@ export default function SettingsPage() {
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-[color:var(--pt-muted)]">Role</dt>
-            <dd>{user.role ?? 'user'}</dd>
+            <dd className="uppercase tracking-wide text-xs font-semibold">{user.role ?? 'user'}</dd>
           </div>
         </dl>
-
-        <div className="mt-5 flex flex-wrap gap-2">
-          <button type="button" className="pt-btn pt-btn--primary" onClick={() => setPasswordOpen(true)}>
-            Change password
-          </button>
-        </div>
+        <button type="button" className="pt-btn pt-btn--primary mt-5" onClick={() => setPasswordOpen(true)}>
+          Change password
+        </button>
       </div>
 
-      {passwordOpen ? <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} /> : null}
+      <ChangePasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
     </div>
   );
 }

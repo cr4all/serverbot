@@ -88,6 +88,19 @@ async function processClient(clientId: string): Promise<void> {
               state: 'ABORTED',
               note: result.error,
               legs: [],
+              tipSummary: {
+                eventName: tip.eventName,
+                sport: tip.sport,
+                profitPercent: tip.profitPercent,
+                legs: tip.legs.map((leg) => ({
+                  bookmaker: String(leg.bookmaker).toUpperCase(),
+                  selection: leg.selection,
+                  odds: leg.odds,
+                  marketType: leg.marketType ?? null,
+                  line: leg.line ?? null,
+                  eventName: leg.eventName ?? tip.eventName,
+                })),
+              },
             },
           },
           { upsert: true }
@@ -122,9 +135,19 @@ async function tick(): Promise<void> {
   }
 }
 
+function isAdminConsoleProcess(): boolean {
+  const raw = String(process.env.ADMIN_CONSOLE ?? '').trim().toLowerCase();
+  if (raw === '1' || raw === 'true' || raw === 'yes') return true;
+  return String(process.env.PORT ?? '').trim() === '5000';
+}
+
 /** Starts the background poller once per Node process (Next.js instrumentation). */
 export function startSurebetAutoRunner(): void {
   if (state.started) return;
+  if (isAdminConsoleProcess()) {
+    console.log('[surebet-auto] skipped on admin console process');
+    return;
+  }
   if (process.env.SUREBET_AUTO_RUN === '0' || process.env.SUREBET_AUTO_RUN === 'false') {
     console.log('[surebet-auto] disabled via SUREBET_AUTO_RUN');
     return;

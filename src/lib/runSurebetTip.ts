@@ -83,9 +83,22 @@ export async function runSurebetTipForClient(opts: {
         vps: vps as never,
         save: async (row: ExecutionRecord) => {
           await connectDB();
+          const tipSummary = {
+            eventName: tip.eventName,
+            sport: tip.sport,
+            profitPercent: tip.profitPercent,
+            legs: tip.legs.map((leg) => ({
+              bookmaker: String(leg.bookmaker).toUpperCase(),
+              selection: leg.selection,
+              odds: leg.odds,
+              marketType: leg.marketType ?? null,
+              line: leg.line ?? null,
+              eventName: leg.eventName ?? tip.eventName,
+            })),
+          };
           await ClientExecution.updateOne(
             { executionId: row.executionId },
-            { $set: { ...row, clientId } },
+            { $set: { ...row, clientId, tipSummary } },
             { upsert: true }
           );
         },

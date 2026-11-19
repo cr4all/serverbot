@@ -9,8 +9,8 @@ import SurebetCredentialsDialog from '@/components/SurebetCredentialsDialog';
 import SurebetBotCard from '@/components/SurebetBotCard';
 import { groupSurebetDesks, type SurebetDesk } from '@/lib/surebetDesks';
 import PageHeader from '@/components/terminal/PageHeader';
-import LoadingState from '@/components/terminal/LoadingState';
 import EmptyState from '@/components/terminal/EmptyState';
+import { BotsPageSkeleton } from '@/components/terminal/Skeleton';
 
 export default function BotsPage() {
   const { data: session, status } = useSession();
@@ -83,8 +83,8 @@ export default function BotsPage() {
     }
   };
 
-  if (status === 'loading' || loading) return <LoadingState label="Loading bots…" />;
-  if (!session) return null;
+  if (status === 'unauthenticated') return null;
+  if (status === 'loading' || loading || !session) return <BotsPageSkeleton />;
 
   return (
     <div>

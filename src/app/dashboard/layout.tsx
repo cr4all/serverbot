@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import ChangePasswordDialog from '@/app/components/ChangePasswordDialog';
+import ThemeToggle from '@/app/components/ThemeToggle';
 import OtpChallengeDialog from '@/components/OtpChallengeDialog';
 
 type IconProps = { className?: string };
@@ -72,20 +73,6 @@ function IconHistory({ className = '' }: IconProps) {
       <path d="M4 12a8 8 0 1 0 2.3-5.6" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
       <path d="M4 5v4h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M12 8v4l3 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-function IconAdmin({ className = '' }: IconProps) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <path
-        d="M12 3 4.5 6v5.5c0 4.4 3.1 8 7.5 9.5 4.4-1.5 7.5-5.1 7.5-9.5V6L12 3Z"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinejoin="round"
-      />
-      <path d="m9 12 2 2 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
@@ -228,7 +215,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
   const { data: session } = useSession();
   const pathname = usePathname() ?? '';
-  const isAdmin = (session?.user as { role?: string } | undefined)?.role === 'admin';
   const displayName = session?.user?.name ?? session?.user?.email ?? 'Signed in';
   const initial = displayName.trim().charAt(0).toUpperCase() || 'S';
 
@@ -275,15 +261,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span>{item.label}</span>
               </Link>
             ))}
-            {isAdmin ? (
-              <Link
-                href="/admin"
-                className={`pt-topnav__link${pathname.startsWith('/admin') ? ' is-active' : ''}`}
-              >
-                <IconAdmin className="pt-topnav__icon" />
-                <span>Admin</span>
-              </Link>
-            ) : null}
           </nav>
 
           <div className="pt-topbar__actions">
@@ -291,6 +268,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <span className="pt-live__dot" aria-hidden />
               Hub + VPS desk
             </span>
+
+            <ThemeToggle inline />
 
             <div className="pt-user" title={displayName}>
               <span className="pt-avatar" aria-hidden>
@@ -389,16 +368,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <span>{item.label}</span>
                 </Link>
               ))}
-              {isAdmin ? (
-                <Link
-                  href="/admin"
-                  className={`pt-drawer__link${pathname.startsWith('/admin') ? ' is-active' : ''}`}
-                  onClick={closeMobile}
-                >
-                  <IconAdmin className="pt-drawer__icon" />
-                  <span>Admin</span>
-                </Link>
-              ) : null}
             </nav>
 
             <div className="pt-drawer__actions">
@@ -439,7 +408,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </>
       ) : null}
 
-      <main className="pt-content">{children}</main>
+      <main className="pt-content">
+        <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">{children}</div>
+      </main>
 
       {isChangePasswordOpen ? (
         <ChangePasswordDialog open={isChangePasswordOpen} onClose={() => setIsChangePasswordOpen(false)} />

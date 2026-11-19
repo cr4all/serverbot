@@ -9,12 +9,13 @@ import PageHeader from '@/components/terminal/PageHeader';
 import KpiCard from '@/components/terminal/KpiCard';
 import EmptyState from '@/components/terminal/EmptyState';
 import ErrorState from '@/components/terminal/ErrorState';
-import LoadingState from '@/components/terminal/LoadingState';
 import StatusBadge from '@/components/terminal/StatusBadge';
+import { HistoryPageSkeleton, KpiGridSkeleton, PanelSkeleton, SkeletonRegion } from '@/components/terminal/Skeleton';
 import CumulativePnLChart from '@/components/stats/CumulativePnLChart';
 import ResultBreakdownBar from '@/components/stats/ResultBreakdownBar';
 import { formatPercent, formatSignedUnits } from '@/components/stats/formatStats';
 import type { Execution, Tip } from '@/lib/terminal/surebetTypes';
+import { formatExecutionReason } from '@/lib/formatExecutionReason';
 
 type BetRow = {
   _id?: string;
@@ -97,8 +98,8 @@ export default function HistoryPage() {
     const desks = groupSurebetDesks(instances);
     const opts: Array<{ id: string; label: string }> = [];
     for (const desk of desks) {
-      if (desk.betonline?._id) opts.push({ id: String(desk.betonline._id), label: `${desk.name} · BetOnline` });
-      if (desk.ps3838?._id) opts.push({ id: String(desk.ps3838._id), label: `${desk.name} · PS3838` });
+      const id = desk.betonline?._id || desk.ps3838?._id;
+      if (id) opts.push({ id: String(id), label: desk.name });
     }
     return opts;
   }, [instances]);
@@ -156,8 +157,8 @@ export default function HistoryPage() {
     return tips.reduce((acc, t) => acc + (Number(t.profitPercent) || 0), 0) / tips.length;
   }, [tips]);
 
-  if (status === 'loading' || loading) return <LoadingState label="Loading history…" />;
-  if (status !== 'authenticated') return null;
+  if (status === 'unauthenticated') return null;
+  if (status === 'loading' || loading) return <HistoryPageSkeleton />;
 
   return (
     <div>
@@ -254,7 +255,17 @@ export default function HistoryPage() {
                 <h2 className="pt-card__title font-mono text-sm !normal-case tracking-normal">{selected.executionId}</h2>
                 <StatusBadge state={selected.state} />
                 <p className="mt-3 text-sm text-[color:var(--pt-muted)]">Stake {selected.totalStake}</p>
-                {selected.note ? <p className="mt-2 text-sm">{selected.note}</p> : null}
+                {selected.tipId ? (
+                  <p className="mt-1 text-xs text-[color:var(--pt-muted)]">
+                    Tip {selected.tipId}
+                    {tips.find((t) => t.tipId === selected.tipId)?.eventName
+                      ? ` · ${tips.find((t) => t.tipId === selected.tipId)?.eventName}`
+                      : ''}
+                  </p>
+                ) : null}
+                <p className="mt-3 text-sm leading-relaxed">
+                  {formatExecutionReason(selected.note, selected.legs)}
+                </p>
                 <ul className="mt-4 space-y-2">
                   {selected.legs.map((leg) => (
                     <li key={`${selected.executionId}-${leg.bookmaker}`} className="rounded-md border border-[color:var(--pt-border)] px-3 py-2 text-sm">
@@ -262,8 +273,15 @@ export default function HistoryPage() {
                         <span className="font-semibold">{leg.bookmaker}</span>
                         <StatusBadge state={leg.state} />
                       </div>
+                      {leg.odds != null ? (
+                        <p className="mt-1 text-xs text-[color:var(--pt-muted)]">Odds {leg.odds}</p>
+                      ) : null}
                       {leg.orderId ? <p className="mt-1 font-mono text-xs text-[color:var(--pt-muted)]">{leg.orderId}</p> : null}
-                      {leg.reason ? <p className="mt-1 text-xs text-[color:#f87171]">{leg.reason}</p> : null}
+                      {leg.reason ? (
+                        <p className="mt-1 text-xs text-[color:var(--pt-danger)]">
+                          {formatExecutionReason(leg.reason, null)}
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -322,7 +340,14 @@ export default function HistoryPage() {
             <EmptyState title="No bot instance" />
           </div>
         ) : !stats ? (
-          <LoadingState label="Loading stats…" />
+          <SkeletonRegion label="Loading stats">
+            <p className="pt-skel-caption">Loading analytics for this bot…</p>
+            <KpiGridSkeleton />
+            <div className="pt-grid-2" style={{ marginTop: '1.05rem' }}>
+              <PanelSkeleton lines={5} />
+              <PanelSkeleton lines={4} />
+            </div>
+          </SkeletonRegion>
         ) : (
           <>
             <div className="pt-kpi-grid">

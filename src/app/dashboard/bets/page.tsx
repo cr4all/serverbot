@@ -2,13 +2,12 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import LoadingState from '@/components/terminal/LoadingState';
+import { RedirectSkeleton } from '@/components/terminal/Skeleton';
 
-/** Merged into History — keep route for old bookmarks. */
 export default function BetsRedirectPage() {
   const router = useRouter();
   useEffect(() => {
     router.replace('/dashboard/history');
   }, [router]);
-  return <LoadingState label="Redirecting to History…" />;
+  return <RedirectSkeleton label="Redirecting to History…" />;
 }

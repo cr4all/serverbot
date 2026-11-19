@@ -28,14 +28,15 @@ export async function GET() {
         return NextResponse.json({ configured: false, accountReady: false, reachable: false });
     }
 
-    const vps = createVpsClient({ connection, timeoutMs: VPS_TIMEOUT_MS });
-    const health = await vps.health();
-    return NextResponse.json({
-        configured: true,
-        accountReady: true,
-        reachable: health.ok,
-        reason: health.reason ?? null,
-    });
+  const vps = createVpsClient({ connection, timeoutMs: VPS_TIMEOUT_MS });
+  const health = await vps.health();
+  // Reachability ≠ logged-in. Session truth comes from desk warm /session/ensure.
+  return NextResponse.json({
+    configured: true,
+    accountReady: false,
+    reachable: health.ok,
+    reason: health.ok ? 'Reachable — session confirmed by desk warm' : health.reason ?? null,
+  });
 }
 
 /**

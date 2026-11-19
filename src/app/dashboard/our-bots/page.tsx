@@ -8,6 +8,7 @@ import { IBot } from '@/types';
 import CreateBotDialog from '../CreateBotDialog';
 import MessageDialog from '@/components/MessageDialog';
 import TemplateStatsStrip from '@/components/TemplateStatsStrip';
+import { BotsPageSkeleton } from '@/components/terminal/Skeleton';
 
 const getBotLogoFileName = (type: string, subtype: number) => {
     const normalizedType = type
@@ -130,9 +131,8 @@ export default function OurBotsPage() {
         router.push('/dashboard');
     };
 
-    if (status === 'loading' || loading) {
-        return <div className="p-8 text-center text-gray-600 dark:text-gray-400">Loading…</div>;
-    }
+    if (status === 'unauthenticated') return null;
+    if (status === 'loading' || loading) return <BotsPageSkeleton />;
     if (!session) return null;
     const isAdmin = (session.user as any)?.role === 'admin';
 

@@ -9,11 +9,12 @@ import { groupSurebetDesks } from '@/lib/surebetDesks';
 import PageHeader from '@/components/terminal/PageHeader';
 import KpiCard from '@/components/terminal/KpiCard';
 import StatusBadge from '@/components/terminal/StatusBadge';
-import LoadingState from '@/components/terminal/LoadingState';
 import EmptyState from '@/components/terminal/EmptyState';
+import { DeskPageSkeleton } from '@/components/terminal/Skeleton';
 import type { Execution, Tip } from '@/lib/terminal/surebetTypes';
 import CumulativePnLChart from '@/components/stats/CumulativePnLChart';
 import { formatSignedUnits } from '@/components/stats/formatStats';
+import { formatLocalStamp } from '@/lib/formatLocalTime';
 
 export default function DashboardPage() {
   const { data: session, status } = useSession();
@@ -64,6 +65,11 @@ export default function DashboardPage() {
   }, [status]);
 
   const desks = useMemo(() => groupSurebetDesks(instances), [instances]);
+  const runningDesks = useMemo(
+    () => [...desks].sort((a, b) => Number(b.running) - Number(a.running)),
+    [desks]
+  );
+  const runningCount = desks.filter((d) => d.running).length;
 
   useEffect(() => {
     const firstId = desks[0]?.betonline?._id || desks[0]?.ps3838?._id;
@@ -87,8 +93,10 @@ export default function DashboardPage() {
     };
   }, [desks]);
 
-  if (status === 'loading' || loading) return <LoadingState label="Loading terminal…" />;
-  if (!session) return null;
+  if (status === 'unauthenticated') return null;
+  if (status === 'loading' || loading || !session) {
+    return <DeskPageSkeleton />;
+  }
 
   const alerts = executions.filter((e) => e.state === 'ONE_LEG' || e.state === 'REVIEW_NEEDED');
   const pnl = stats?.performance?.netPnL;
@@ -99,17 +107,23 @@ export default function DashboardPage() {
         title="Dashboard"
         description={`Welcome back, ${session.user?.name ?? 'operator'}. Live tips and executions from your hub client.`}
         actions={
-          <Link href="/dashboard/opportunities" className="pt-btn pt-btn--primary">
+          <Link href="/dashboard/opportunities" className="pt-btn pt-btn--primary pt-btn--board">
             Open board
           </Link>
         }
       />
 
       <div className="pt-kpi-grid">
-        <KpiCard label="Open tips" value={tips.length} hint={hubError ? 'Hub issue' : 'From hub'} />
-        <KpiCard label="Surebet bots" value={desks.length} hint="BetOnline + PS3838 desks" />
-        <KpiCard label="Recent runs" value={executions.length} hint={`${alerts.length} need attention`} />
+        <KpiCard tone="tips" label="Open tips" value={tips.length} hint={hubError ? 'Hub issue' : 'From hub'} />
+        <KpiCard tone="bots" label="Surebet bots" value={desks.length} hint="BetOnline + PS3838 desks" />
         <KpiCard
+          tone="run"
+          label="Auto-run"
+          value={`${runningCount}/${desks.length}`}
+          hint={`${executions.length} recent runs`}
+        />
+        <KpiCard
+          tone={alerts.length ? 'alert' : undefined}
           label="Realized P&L"
           value={pnl == null ? '—' : formatSignedUnits(pnl)}
           hint={stats ? 'First bot · last month UTC' : 'No instance stats yet'}
@@ -138,6 +152,7 @@ export default function DashboardPage() {
                     <th>Event</th>
                     <th>Sport</th>
                     <th>ROI</th>
+                    <th>Seen (local)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -146,6 +161,9 @@ export default function DashboardPage() {
                       <td className="font-medium">{tip.eventName}</td>
                       <td>{tip.sport}</td>
                       <td className="text-[color:var(--pt-cyan)]">{tip.profitPercent}%</td>
+                      <td className="text-xs tabular-nums text-[color:var(--pt-muted)]">
+                        {formatLocalStamp(tip.createdAt ?? tip.startsAtUtc)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -176,15 +194,37 @@ export default function DashboardPage() {
 
           <div className="pt-card">
             <h2 className="pt-card__title">Bots</h2>
-            {desks.length === 0 ? (
+            {runningDesks.length === 0 ? (
               <EmptyState title="No surebet bots" message="Create a desk with both bookmaker logins." />
             ) : (
               <ul className="space-y-2 text-sm">
-                {desks.slice(0, 5).map((d) => (
-                  <li key={d.deskId} className="flex justify-between gap-2">
-                    <span>{d.name}</span>
-                    <span className="text-[color:var(--pt-muted)] text-xs">
-                      {[d.betonline ? 'BOL' : null, d.ps3838 ? 'PS' : null].filter(Boolean).join('+')}
+                {runningDesks.slice(0, 5).map((d) => (
+                  <li
+                    key={d.deskId}
+                    className={`flex items-center justify-between gap-2${d.running ? ' desk-running-row' : ''}`}
+                  >
+                    <span className="flex items-center gap-2 min-w-0">
+                      <span className="truncate">{d.name}</span>
+                      <StatusBadge
+                        state={d.running ? 'DONE' : 'ABORTED'}
+                        label={d.running ? 'Running' : 'Stopped'}
+                      />
+                    </span>
+                    <span className="flex items-center gap-2 shrink-0 text-xs">
+                      {d.running ? (
+                        <>
+                          <Link href="/dashboard/opportunities" className="pt-btn--board text-[color:var(--pt-cyan)]">
+                            Board
+                          </Link>
+                          <Link href="/dashboard/bots" className="text-[color:var(--pt-warn)]">
+                            Stop
+                          </Link>
+                        </>
+                      ) : (
+                        <span className="text-[color:var(--pt-muted)]">
+                          {[d.betonline ? 'BOL' : null, d.ps3838 ? 'PS' : null].filter(Boolean).join('+')}
+                        </span>
+                      )}
                     </span>
                   </li>
                 ))}

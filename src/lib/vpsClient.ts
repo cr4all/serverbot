@@ -56,6 +56,15 @@ export interface OtpSubmitResult {
     reason?: string;
 }
 
+export interface SessionEnsureResult {
+    ok: boolean;
+    loggedIn: boolean;
+    reused?: boolean;
+    reason?: string | null;
+    bookmaker?: string;
+    clientId?: string;
+}
+
 export class VpsError extends Error {
     constructor(message: string, public status: number) {
         super(message);
@@ -134,6 +143,9 @@ export function createVpsClient(options: {
             } finally {
                 clearTimeout(timer);
             }
+        },
+        async ensureSession(clientId: string, bookmaker: string): Promise<SessionEnsureResult> {
+            return call<SessionEnsureResult>('/agent/session/ensure', { clientId, bookmaker });
         },
         async prepare(executionId: string, clientId: string, leg: VpsLeg, stake: number, expiresAtUtc?: string): Promise<PrepareResult> {
             return call<PrepareResult>('/agent/prepare', payload(executionId, clientId, leg, stake, { expiresAtUtc }));

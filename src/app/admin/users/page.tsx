@@ -578,35 +578,54 @@ export default function AdminUsersPage() {
                 <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500">
                   {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : '—'}
                 </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium space-x-2">
-                  <button
-                    type="button"
-                    onClick={() => setAssignModalUserId(user._id)}
-                    className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400"
-                  >
-                    Assign
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => toggleRole(user._id, user.role)}
-                    className="text-blue-600 hover:text-blue-900 dark:text-blue-400"
-                  >
-                    Role
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => openResetPasswordDialog(user)}
-                    className="text-yellow-600 hover:text-yellow-900 dark:text-yellow-400"
-                  >
-                    Reset PW
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => deleteUser(user._id)}
-                    className="text-red-600 hover:text-red-900 dark:text-red-400"
-                  >
-                    Delete
-                  </button>
+                <td className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium">
+                  <div className="inline-flex items-center justify-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setAssignModalUserId(user._id)}
+                      title="Assign bot templates to this user"
+                      aria-label="Assign bot templates"
+                      className="rounded-md p-1.5 text-indigo-600 hover:bg-indigo-50 dark:text-indigo-400 dark:hover:bg-indigo-950/40"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 3.487a2.25 2.25 0 113.182 3.182L7.5 19.213l-4 1 1-4L16.862 3.487z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => toggleRole(user._id, user.role)}
+                      title={user.role === 'admin' ? 'Change role to user' : 'Change role to admin'}
+                      aria-label="Toggle user role"
+                      className="rounded-md p-1.5 text-blue-600 hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-950/40"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M10 2a4 4 0 100 8 4 4 0 000-8zM2 18a8 8 0 0116 0H2z" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openResetPasswordDialog(user)}
+                      title="Reset password and show a temporary password"
+                      aria-label="Reset password"
+                      className="rounded-md p-1.5 text-amber-600 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/40"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 5.25a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 19.5a7.5 7.5 0 0115 0" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 12v3m0 0l-1.5 1.5M12 15l1.5 1.5" />
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteUser(user._id)}
+                      title="Delete this user permanently"
+                      aria-label="Delete user"
+                      className="rounded-md p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 7h12M9 7V5a1 1 0 011-1h4a1 1 0 011 1v2m-7 0v10a2 2 0 002 2h2a2 2 0 002-2V7" />
+                      </svg>
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

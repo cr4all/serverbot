@@ -11,8 +11,23 @@ type DetailTab = 'monitor' | 'performance';
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
+type AdminRow =
+    | {
+          kind: 'desk';
+          deskId: string;
+          name: string;
+          createdAt: string;
+          status: string;
+          running: boolean;
+          userId: { _id?: string; name?: string; email?: string } | null;
+          betonline: any | null;
+          ps3838: any | null;
+          instanceIds: string[];
+      }
+    | { kind: 'instance'; instance: any };
+
 export default function AdminInstancesPage() {
-    const [instances, setInstances] = useState<any[]>([]);
+    const [rows, setRows] = useState<AdminRow[]>([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState<any | null>(null);
     const [bets, setBets] = useState<any[]>([]);
@@ -60,7 +75,7 @@ export default function AdminInstancesPage() {
             const res = await fetch(`/api/admin/bot-instances?${params}`);
             if (res.ok) {
                 const data = await res.json();
-                setInstances(data.instances ?? []);
+                setRows(Array.isArray(data.rows) ? data.rows : []);
                 setTotal(data.pagination?.total ?? 0);
                 setTotalPages(data.pagination?.totalPages ?? 0);
                 setRunningCount(data.stats?.running ?? 0);
@@ -133,30 +148,52 @@ export default function AdminInstancesPage() {
         fetchInstances({ overridePage: 1, overrideLimit: newLimit });
     };
 
+    const patchInstanceStatus = async (id: string, newStatus: 'RUNNING' | 'STOPPED') => {
+        const res = await fetch(`/api/bot-instances/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: newStatus }),
+        });
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err?.error || 'Failed to update instance');
+        }
+        return res.json();
+    };
+
     const toggleStatus = async (instance: any) => {
-        const id = instance._id;
+        const id = String(instance._id);
         const isRunning = instance.status === 'RUNNING';
         const newStatus = isRunning ? 'STOPPED' : 'RUNNING';
         if (instance.status === 'STARTING' || instance.status === 'STOPPING') return;
         setTogglingId(id);
         try {
-            const res = await fetch(`/api/bot-instances/${id}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: newStatus }),
-            });
-            if (res.ok) {
-                fetchInstances();
-                if (selected?._id === id) {
-                    viewInstance(id);
-                }
-            } else {
-                const err = await res.json();
-                alert(err?.error || 'Failed to update instance');
+            await patchInstanceStatus(id, newStatus);
+            fetchInstances();
+            if (selected?._id === id) viewInstance(id);
+        } catch (e) {
+            console.error(e);
+            alert((e as Error)?.message || 'Failed to update instance');
+        } finally {
+            setTogglingId(null);
+        }
+    };
+
+    const toggleDesk = async (row: Extract<AdminRow, { kind: 'desk' }>) => {
+        const legs = [row.betonline, row.ps3838].filter(Boolean);
+        if (legs.length === 0) return;
+        if (legs.some((leg) => leg.status === 'STARTING' || leg.status === 'STOPPING')) return;
+        const newStatus = row.running ? 'STOPPED' : 'RUNNING';
+        setTogglingId(row.deskId);
+        try {
+            await Promise.all(legs.map((leg) => patchInstanceStatus(String(leg._id), newStatus)));
+            fetchInstances();
+            if (selected && row.instanceIds.includes(String(selected._id))) {
+                viewInstance(String(selected._id));
             }
         } catch (e) {
             console.error(e);
-            alert('Failed to update instance');
+            alert((e as Error)?.message || 'Failed to update desk');
         } finally {
             setTogglingId(null);
         }
@@ -270,7 +307,9 @@ export default function AdminInstancesPage() {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Instance Monitoring</h1>
-                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Manage and monitor all bot instances across the platform</p>
+                    <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                        Surebet bots are shown as one desk (BetOnline + PS3838), not two separate instances.
+                    </p>
                 </div>
                 <div className="flex gap-3 text-sm">
                     <div className="flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-4 py-2 dark:border-gray-600 dark:bg-gray-800">
@@ -396,7 +435,7 @@ export default function AdminInstancesPage() {
             <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                 <div className="flex items-center gap-4">
                     <span className="text-sm text-gray-600 dark:text-gray-400">
-                        {total === 0 ? 'No instances' : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}`}
+                        {total === 0 ? 'No bots' : `Showing ${(page - 1) * limit + 1}–${Math.min(page * limit, total)} of ${total}`}
                     </span>
                     <select
                         value={limit}
@@ -453,74 +492,151 @@ export default function AdminInstancesPage() {
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                     <thead className="bg-gray-50/80 dark:bg-gray-800/80">
                         <tr>
-                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Instance Name</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Bot</th>
                             <th className="w-48 min-w-[18rem] max-w-[20rem] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Owner</th>
-                            <th className="w-40 min-w-[18rem] max-w-[20rem] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Template</th>
+                            <th className="w-40 min-w-[18rem] max-w-[20rem] px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Books</th>
                             <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Status</th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Created</th>
                             <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                        {instances.map((instance) => (
-                            <tr key={instance._id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
-                                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                    <div className="flex flex-col gap-0.5">
-                                        <span className="font-medium text-gray-900 dark:text-white">{instance.name}</span>
-                                        <span className="font-mono text-xs text-gray-500 dark:text-gray-400" title={instance._id}>{instance._id}</span>
-                                    </div>
-                                </td>
-                                <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={`${instance.userId?.name || ''} (${instance.userId?.email || ''})`}>
-                                    {instance.userId?.name} <span className="text-xs">({instance.userId?.email})</span>
-                                </td>
-                                <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={instance.botId?.name}>
-                                    {instance.botId?.name}
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                    <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusStyles(instance.status)}`}>
-                                        {instance.status}
-                                    </span>
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500 dark:text-gray-400">
-                                    {new Date(instance.createdAt).toLocaleDateString()}
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {instance.status === 'RUNNING' ? (
+                        {rows.map((row) => {
+                            if (row.kind === 'desk') {
+                                const books = [
+                                    row.betonline ? 'BetOnline' : null,
+                                    row.ps3838 ? 'PS3838' : null,
+                                ]
+                                    .filter(Boolean)
+                                    .join(' + ');
+                                const ownerTitle = `${row.userId?.name || ''} (${row.userId?.email || ''})`;
+                                const busy = togglingId === row.deskId;
+                                return (
+                                    <tr key={`desk-${row.deskId}`} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                            <div className="flex flex-col gap-0.5">
+                                                <span className="font-medium text-gray-900 dark:text-white">{row.name}</span>
+                                                <span className="font-mono text-xs text-gray-500 dark:text-gray-400" title={row.deskId}>
+                                                    desk {row.deskId}
+                                                </span>
+                                            </div>
+                                        </td>
+                                        <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={ownerTitle}>
+                                            {row.userId?.name} <span className="text-xs">({row.userId?.email})</span>
+                                        </td>
+                                        <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={books}>
+                                            {books || '—'}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                            <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusStyles(row.status)}`}>
+                                                {row.status}
+                                            </span>
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500 dark:text-gray-400">
+                                            {new Date(row.createdAt).toLocaleDateString()}
+                                        </td>
+                                        <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                                            <div className="flex items-center justify-end gap-2">
+                                                {row.status === 'RUNNING' ? (
+                                                    <button
+                                                        onClick={() => void toggleDesk(row)}
+                                                        disabled={busy}
+                                                        className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/20"
+                                                    >
+                                                        {busy ? 'Stopping…' : 'Stop'}
+                                                    </button>
+                                                ) : row.status === 'STOPPED' || row.status === 'ERROR' ? (
+                                                    <button
+                                                        onClick={() => void toggleDesk(row)}
+                                                        disabled={busy}
+                                                        className="rounded-lg px-2.5 py-1 text-xs font-medium text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:hover:bg-emerald-900/20"
+                                                    >
+                                                        {busy ? 'Starting…' : 'Start'}
+                                                    </button>
+                                                ) : null}
+                                                {row.betonline?._id ? (
+                                                    <button
+                                                        onClick={() => viewInstance(String(row.betonline._id))}
+                                                        className="rounded-lg px-2.5 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                                                    >
+                                                        View BOL
+                                                    </button>
+                                                ) : null}
+                                                {row.ps3838?._id ? (
+                                                    <button
+                                                        onClick={() => viewInstance(String(row.ps3838._id))}
+                                                        className="rounded-lg px-2.5 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
+                                                    >
+                                                        View PS
+                                                    </button>
+                                                ) : null}
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            }
+
+                            const instance = row.instance;
+                            return (
+                                <tr key={instance._id} className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50">
+                                    <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                        <div className="flex flex-col gap-0.5">
+                                            <span className="font-medium text-gray-900 dark:text-white">{instance.name}</span>
+                                            <span className="font-mono text-xs text-gray-500 dark:text-gray-400" title={instance._id}>{instance._id}</span>
+                                        </div>
+                                    </td>
+                                    <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={`${instance.userId?.name || ''} (${instance.userId?.email || ''})`}>
+                                        {instance.userId?.name} <span className="text-xs">({instance.userId?.email})</span>
+                                    </td>
+                                    <td className="max-w-[20rem] truncate px-6 py-4 text-sm text-gray-500 dark:text-gray-400" title={instance.botId?.name}>
+                                        {instance.botId?.name}
+                                    </td>
+                                    <td className="whitespace-nowrap px-6 py-4 text-sm">
+                                        <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusStyles(instance.status)}`}>
+                                            {instance.status}
+                                        </span>
+                                    </td>
+                                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm text-gray-500 dark:text-gray-400">
+                                        {new Date(instance.createdAt).toLocaleDateString()}
+                                    </td>
+                                    <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                                        <div className="flex items-center justify-end gap-2">
+                                            {instance.status === 'RUNNING' ? (
+                                                <button
+                                                    onClick={() => toggleStatus(instance)}
+                                                    disabled={togglingId === instance._id}
+                                                    className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/20"
+                                                >
+                                                    {togglingId === instance._id ? 'Stopping…' : 'Stop'}
+                                                </button>
+                                            ) : instance.status === 'STOPPED' || instance.status === 'ERROR' ? (
+                                                <button
+                                                    onClick={() => toggleStatus(instance)}
+                                                    disabled={togglingId === instance._id}
+                                                    className="rounded-lg px-2.5 py-1 text-xs font-medium text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:hover:bg-emerald-900/20"
+                                                >
+                                                    {togglingId === instance._id ? 'Starting…' : 'Start'}
+                                                </button>
+                                            ) : null}
                                             <button
-                                                onClick={() => toggleStatus(instance)}
-                                                disabled={togglingId === instance._id}
-                                                className="rounded-lg px-2.5 py-1 text-xs font-medium text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-900/20"
+                                                onClick={() => viewInstance(instance._id)}
+                                                className="rounded-lg px-2.5 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
                                             >
-                                                {togglingId === instance._id ? 'Stopping…' : 'Stop'}
+                                                View
                                             </button>
-                                        ) : instance.status === 'STOPPED' || instance.status === 'ERROR' ? (
-                                            <button
-                                                onClick={() => toggleStatus(instance)}
-                                                disabled={togglingId === instance._id}
-                                                className="rounded-lg px-2.5 py-1 text-xs font-medium text-emerald-600 transition hover:bg-emerald-50 disabled:opacity-50 dark:hover:bg-emerald-900/20"
-                                            >
-                                                {togglingId === instance._id ? 'Starting…' : 'Start'}
-                                            </button>
-                                        ) : null}
-                                        <button
-                                            onClick={() => viewInstance(instance._id)}
-                                            className="rounded-lg px-2.5 py-1 text-xs font-medium text-blue-600 transition hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-blue-900/20"
-                                        >
-                                            View
-                                        </button>
-                                    </div>
-                                </td>
-                            </tr>
-                        ))}
-                        {instances.length === 0 && (
+                                        </div>
+                                    </td>
+                                </tr>
+                            );
+                        })}
+                        {rows.length === 0 && (
                             <tr>
                                 <td colSpan={6} className="py-16 text-center">
                                     <div className="flex flex-col items-center gap-2">
                                         <svg className="h-12 w-12 text-gray-300 dark:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                         </svg>
-                                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No instances found</p>
+                                        <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No bots found</p>
                                         <p className="text-xs text-gray-400 dark:text-gray-500">Try adjusting your filters or create new instances</p>
                                     </div>
                                 </td>

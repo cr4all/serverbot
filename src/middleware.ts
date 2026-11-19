@@ -14,15 +14,15 @@ function isAdminConsole(request: NextRequest): boolean {
   const raw = String(process.env.ADMIN_CONSOLE ?? '').trim().toLowerCase();
   if (raw === '1' || raw === 'true' || raw === 'yes') return true;
   // Fallback when Edge middleware cannot see process env: detect by listen port.
-  return requestPort(request) === '3100';
+  return requestPort(request) === '5000';
 }
 
 function adminConsoleUrl(request: NextRequest): string {
   const fromEnv = String(process.env.ADMIN_CONSOLE_URL ?? '').trim().replace(/\/$/, '');
   if (fromEnv) return fromEnv;
-  const hostHeader = request.headers.get('host') || '127.0.0.1:3000';
+  const hostHeader = request.headers.get('host') || '127.0.0.1:8000';
   const hostname = hostHeader.split(':')[0] || '127.0.0.1';
-  return `http://${hostname}:3100`;
+  return `http://${hostname}:5000`;
 }
 
 function isAllowedOnAdminConsole(pathname: string): boolean {

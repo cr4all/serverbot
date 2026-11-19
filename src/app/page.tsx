@@ -27,7 +27,7 @@ export default async function Home() {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-white">
-      <main className="mx-auto flex w-full max-w-6xl flex-col items-center gap-4 px-4 py-4 text-center sm:gap-6 sm:px-6 sm:py-8 md:gap-10 md:py-12">
+      <main className="mx-auto flex w-full max-w-7xl flex-col items-center gap-4 px-4 py-4 text-center sm:gap-6 sm:px-6 sm:py-8 md:gap-10 md:py-12">
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white md:text-5xl">
           ServerBot Manager
         </h1>

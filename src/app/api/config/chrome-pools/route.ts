@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -10,7 +10,9 @@ export async function GET() {
 
     try {
         const baseUrl = process.env.NEXT_PUBLIC_BOTMANAGER_URL || 'http://localhost:4000';
-        const res = await fetch(`${baseUrl}/chrome-pools`);
+        const bookmaker = request.nextUrl.searchParams.get('bookmaker')?.trim();
+        const query = bookmaker ? `?bookmaker=${encodeURIComponent(bookmaker)}` : '';
+        const res = await fetch(`${baseUrl}/chrome-pools${query}`);
         if (!res.ok) {
             return NextResponse.json(
                 { error: 'Failed to fetch Chrome pool VPS list' },

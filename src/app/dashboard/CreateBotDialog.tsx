@@ -172,21 +172,27 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
             .catch(() => {});
     }, []);
 
+    const chromePoolBookmaker = String(
+        (
+            templates.find((t) => String(t._id) === String(formData.botId)) ??
+            (initialData?.botId && typeof initialData.botId === 'object' ? (initialData.botId as IBotTemplateRef) : undefined)
+        )?.type ?? '',
+    ).trim();
+
     useEffect(() => {
         if (!isOpen) return;
-        fetch('/api/config/chrome-pools')
+        const query = chromePoolBookmaker ? `?bookmaker=${encodeURIComponent(chromePoolBookmaker)}` : '';
+        fetch(`/api/config/chrome-pools${query}`)
             .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
-                if (Array.isArray(data?.pools)) {
-                    setChromePools(
-                        data.pools.filter(
-                            (p: ChromePoolOption) => p?.baseUrl && p?.cdpHost,
-                        ),
-                    );
-                }
+                setChromePools(
+                    Array.isArray(data?.pools)
+                        ? data.pools.filter((p: ChromePoolOption) => p?.baseUrl && p?.cdpHost)
+                        : [],
+                );
             })
             .catch(() => setChromePools([]));
-    }, [isOpen]);
+    }, [isOpen, chromePoolBookmaker]);
 
     useEffect(() => {
         if (isOpen) {

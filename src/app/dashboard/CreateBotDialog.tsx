@@ -755,7 +755,6 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                         : params
                                     )
                                     .filter((p: { paramName: string }) => {
-                                        if (p.paramName === 'BET365_NL_DOMAIN') return formData.config.locale === 'NETHERLANDS';
                                         if (p.paramName !== 'VALUEBET_MODE') return true;
                                         return selectedBotTypes((formData.config as Record<string, unknown>).BOTTYPE).includes('valuebot');
                                     })

@@ -51,7 +51,7 @@ export interface IBot {
 
 // Bot Instance Types
 export type BotStatus = 'STOPPED' | 'STARTING' | 'RUNNING' | 'ERROR' | 'STOPPING';
-export type Locale = 'COMMON' | 'UNITED_KINGDOM' | 'SPAIN' | 'ITALY' | 'GREECE' | 'AUSTRALIA' | 'FINLAND' | 'BRAZIL';
+export type Locale = 'COMMON' | 'UNITED_KINGDOM' | 'SPAIN' | 'ITALY' | 'GREECE' | 'AUSTRALIA' | 'FINLAND' | 'BRAZIL' | 'NETHERLANDS';
 export type BotInstanceBotType = 'copybot' | 'valuebot' | 'tipsterbot';
 
 export interface IBotInstanceFilters {

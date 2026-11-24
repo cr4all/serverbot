@@ -5,7 +5,7 @@ import { randomInt } from 'node:crypto';
 
 export const LINK_CODE_TTL_MS = 10 * 60 * 1000;
 
-export const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'];
+export const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL', 'NETHERLANDS'];
 
 const ALLOWED_BOT_TYPES = ['copybot', 'valuebot', 'tipsterbot'];
 

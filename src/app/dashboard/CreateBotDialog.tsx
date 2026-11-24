@@ -25,7 +25,7 @@ interface CreateBotDialogProps {
 const STEP_SELECT_TEMPLATE = 1;
 const STEP_CONFIGURE_INSTANCE = 2;
 
-const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'] as const;
+const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL', 'NETHERLANDS'] as const;
 
 const ALLOWED_BOT_TYPES = ['copybot', 'valuebot', 'tipsterbot'] as const;
 
@@ -749,6 +749,7 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                                         : params
                                     )
                                     .filter((p: { paramName: string }) => {
+                                        if (p.paramName === 'BET365_NL_DOMAIN') return formData.config.locale === 'NETHERLANDS';
                                         if (p.paramName !== 'VALUEBET_MODE') return true;
                                         return selectedBotTypes((formData.config as Record<string, unknown>).BOTTYPE).includes('valuebot');
                                     })

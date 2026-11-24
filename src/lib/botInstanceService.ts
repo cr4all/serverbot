@@ -6,7 +6,7 @@ import BotAssignment from '@/models/BotAssignment';
 import { normalizeFilterConfig, validateFilterConfig } from '@/lib/botInstanceFilters';
 import { mainbotFetch } from '@/lib/mainbotClient';
 
-export const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL'];
+export const ALLOWED_LOCALES = ['COMMON', 'UNITED_KINGDOM', 'SPAIN', 'ITALY', 'GREECE', 'AUSTRALIA', 'FINLAND', 'BRAZIL', 'NETHERLANDS'];
 
 export type ServiceFailure = { ok: false; status: number; error: string; code?: string };
 

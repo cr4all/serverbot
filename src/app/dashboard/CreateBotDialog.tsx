@@ -880,51 +880,39 @@ export default function CreateBotDialog({ isOpen, onClose, onSuccess, initialDat
                         <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
                             Chrome VPS
                         </label>
-                        {chromePools.length > 0 ? (
-                            <select
-                                name="chromePoolSelect"
-                                value={
-                                    formData.config.chromePoolBaseUrl && formData.config.chromeCdpHost
-                                        ? chromePoolSelectValue({
-                                              baseUrl: formData.config.chromePoolBaseUrl,
-                                              cdpHost: formData.config.chromeCdpHost,
-                                          })
-                                        : ''
-                                }
-                                onChange={handleChromePoolChange}
-                                className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                            >
-                                <option value="">Auto (first available VPS)</option>
-                                {chromePools.map((p) => (
-                                    <option key={chromePoolSelectValue(p)} value={chromePoolSelectValue(p)}>
-                                        {p.label || p.cdpHost}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <div className="mt-1 grid gap-2 sm:grid-cols-2">
-                                <input
-                                    type="text"
-                                    name="chromePoolBaseUrl"
-                                    placeholder="Pool API URL (http://host:8888)"
-                                    value={formData.config.chromePoolBaseUrl}
-                                    onChange={handleChange}
-                                    className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                                <input
-                                    type="text"
-                                    name="chromeCdpHost"
-                                    placeholder="CDP host / IP"
-                                    value={formData.config.chromeCdpHost}
-                                    onChange={handleChange}
-                                    className="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                                />
-                            </div>
-                        )}
+                        {(() => {
+                            const pinnedValue =
+                                formData.config.chromePoolBaseUrl && formData.config.chromeCdpHost
+                                    ? chromePoolSelectValue({
+                                          baseUrl: formData.config.chromePoolBaseUrl,
+                                          cdpHost: formData.config.chromeCdpHost,
+                                      })
+                                    : '';
+                            const pinnedMissing =
+                                pinnedValue !== '' && !chromePools.some((p) => chromePoolSelectValue(p) === pinnedValue);
+                            return (
+                                <select
+                                    name="chromePoolSelect"
+                                    value={pinnedValue}
+                                    onChange={handleChromePoolChange}
+                                    className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm shadow-sm dark:bg-gray-700 dark:border-gray-600 dark:text-white"
+                                >
+                                    <option value="">Auto (first available VPS)</option>
+                                    {pinnedMissing && (
+                                        <option value={pinnedValue}>{formData.config.chromeCdpHost}</option>
+                                    )}
+                                    {chromePools.map((p) => (
+                                        <option key={chromePoolSelectValue(p)} value={chromePoolSelectValue(p)}>
+                                            {p.label || p.cdpHost}
+                                        </option>
+                                    ))}
+                                </select>
+                            );
+                        })()}
                         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                             Which worker-pool server runs Chrome for this instance. Change applies the next time the bot starts.
                             {chromePools.length === 0
-                                ? ' VPS list is empty — enter Pool API URL and CDP host, or check CHROME_POOLS on mainbot.'
+                                ? ' No VPS list loaded — check CHROME_POOLS on mainbot.'
                                 : ''}
                         </p>
                     </div>
